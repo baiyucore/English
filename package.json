@@ -1,0 +1,51 @@
+{
+  "name": "english",
+  "private": true,
+  "packageManager": "pnpm@10.34.2",
+  "scripts": {
+    "prepare": "husky",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "turbo run type-check",
+    "test": "turbo run test",
+    "frontend": "turbo run dev --filter=@en/frontend",
+    "backend": "turbo run dev --filter=@en/backend",
+    "ai": "pnpm --filter @en/backend start:dev ai",
+    "all": "concurrently \"pnpm run frontend\" \"pnpm run backend\" \"pnpm run ai\"",
+    "commit": "cz"
+  },
+  "lint-staged": {
+    "*.{js,ts,vue,mjs,cjs,json,md,yml,yaml}": "prettier --write",
+    "apps/backend/**/*.ts": "eslint --fix",
+    "apps/frontend/**/*.{ts,vue}": "eslint --fix",
+    "packages/**/*.ts": "eslint --fix"
+  },
+  "config": {
+    "commitizen": {
+      "path": "node_modules/cz-git"
+    }
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.1",
+    "@commitlint/config-conventional": "^21.2.0",
+    "@eslint/js": "^9.39.2",
+    "commitizen": "^4.3.2",
+    "concurrently": "^9.2.1",
+    "cz-git": "^1.13.1",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.4",
+    "eslint-plugin-vue": "^10.2.0",
+    "globals": "^16.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.2.0",
+    "prettier": "^3.7.4",
+    "turbo": "^2.10.7",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0"
+  }
+}
