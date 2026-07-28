@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Res, Query } from '@nestjs/common';
 import { CharService } from './char.service';
 import type { ChatDto, ChatRoleType } from '@en/common/chat';
 import type { Response } from 'express';
-@Controller('char')
+@Controller('chat')
 export class CharController {
   constructor(private readonly charService: CharService) {}
 

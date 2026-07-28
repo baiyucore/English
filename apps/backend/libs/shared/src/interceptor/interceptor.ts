@@ -41,7 +41,7 @@ export class InterceptorInterceptor implements NestInterceptor {
 
           code: data?.code || 200,
           success: true,
-          data: transformBigInt(data?.data) ?? null
+          data: transformBigInt(data?.data) ?? null,
         };
       }),
     );

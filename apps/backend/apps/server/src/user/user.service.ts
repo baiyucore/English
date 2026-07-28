@@ -36,7 +36,7 @@ export class UserService {
     private readonly jwtService: JwtService,
     private readonly minioService: MinioService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
   //登录
   async login(createUserDto: UserLogin) {
     const user = await this.prisma.user.findUnique({

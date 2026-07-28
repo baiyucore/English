@@ -4,13 +4,15 @@ import { chatMode } from './prompt.mode';
 
 @Injectable()
 export class PromptService {
-  constructor(private readonly responseService: ResponseService) { }
+  constructor(private readonly responseService: ResponseService) {}
 
   findAll() {
-    return this.responseService.success(chatMode.map((item) => ({
-      label: item.label,
-      id: item.id,
-      role: item.role,
-    })));
+    return this.responseService.success(
+      chatMode.map((item) => ({
+        label: item.label,
+        id: item.id,
+        role: item.role,
+      })),
+    );
   }
 }
