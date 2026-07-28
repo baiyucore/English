@@ -26,3 +26,19 @@ export type ChatDto = {
   content: string; // 内容
   userId: string; // 用户id
 };
+
+export type ChatStreamEvent =
+  | {
+      type: 'delta';
+      role: 'ai';
+      content: string;
+    }
+  | {
+      type: 'done';
+      role: 'ai';
+    }
+  | {
+      type: 'error';
+      role: 'ai';
+      error: string;
+    };

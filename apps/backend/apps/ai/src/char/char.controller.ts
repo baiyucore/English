@@ -12,16 +12,25 @@ export class CharController {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    const stream = await this.charService.streamCompletion(createCharDto);
-    for await (const chunk of stream) {
-      const [msg] = chunk;
-      if (msg.getType() !== 'ai' || !msg.content) continue;
-      if (typeof msg.content !== 'string') continue;
+
+    try {
+      const stream = await this.charService.streamCompletion(createCharDto);
+      for await (const chunk of stream) {
+        const [msg] = chunk;
+        if (msg.getType() !== 'ai' || !msg.content) continue;
+        if (typeof msg.content !== 'string') continue;
+        res.write(
+          `data: ${JSON.stringify({ type: 'delta', role: 'ai', content: msg.content })}\n\n`,
+        );
+      }
+      res.write(`data: ${JSON.stringify({ type: 'done', role: 'ai' })}\n\n`);
+    } catch {
       res.write(
-        `data: ${JSON.stringify({ content: msg.content, role: 'ai' })}\n\n`,
+        `data: ${JSON.stringify({ type: 'error', role: 'ai', content: 'AI 回复失败' })}\n\n`,
       );
+    } finally {
+      res.end();
     }
-    res.end();
   }
 
   @Get('history')
