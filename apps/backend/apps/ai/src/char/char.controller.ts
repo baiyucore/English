@@ -8,10 +8,16 @@ export class CharController {
 
   @Post()
   async create(@Body() createCharDto: ChatDto, @Res() res: Response) {
+    const controller = new AbortController();
+
+    res.on('close', () => {
+      controller.abort();
+    });
     // 设置 格式化SSE
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
 
     try {
       const stream = await this.charService.streamCompletion(createCharDto);
