@@ -1,5 +1,6 @@
 # dependencies
 node_modules
+.pnpm-store/
 
 # build output
 dist
@@ -63,6 +64,10 @@ pids
 
 # prisma
 apps/backend/generated/prisma
+
+# database backups (local migration dumps)
+backups/
+*.dump
 
 # editor backups
 *.suo

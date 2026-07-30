@@ -1,41 +1,51 @@
 <template>
-  <div
-    class="p-5 rounded-[5px] w-[256px] bg-purple-50 border border-right-1 border-t-0 border-b-0 border-l-0 border-gray-200"
+  <aside
+    class="flex h-[750px] w-64 shrink-0 flex-col rounded-[5px] border border-gray-200 bg-purple-50"
   >
-    <div
-      v-for="value in chatMode"
-      :key="value.id"
-      :class="{ 'bg-purple-300': active === value.id }"
-      class="rounded-[5px] p-2 transition-all duration-300"
-      @click="changeActive(value)"
-    >
-      <div class="text-sm cursor-pointer p-2 px-4 text-gray-700">
-        {{ value.label }}
-      </div>
+    <div class="flex flex-col gap-3 p-4">
+      <Button class="w-full" variant="outline" @click="handleNewChat">
+        <Plus class="size-4" data-icon="inline-start" />
+        新聊天
+      </Button>
+      <Separator />
     </div>
-  </div>
+
+    <ConversationDrawer
+      :conversations="conversations"
+      :active-id="activeId"
+      @on-select-conversation="handleSelect"
+      @on-delete-conversation="handleDelete"
+    />
+  </aside>
 </template>
 
 <script setup lang="ts">
-import type { ChatModeList, ChatMode } from '@en/common/chat';
-import { ref, onMounted } from 'vue';
-import { getChatMode } from '@/apis/chat';
-const chatMode = ref<ChatModeList>([]);
-const active = ref('');
-const emits = defineEmits(['onGetRole']);
-const changeActive = (value: ChatMode) => {
-  active.value = value.id;
-  emits('onGetRole', value.role);
+import { Plus } from 'lucide-vue-next';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
+import ConversationDrawer from './ConversationDrawer.vue';
+import type { ConversationItem } from '../types';
+
+defineProps<{
+  conversations: ConversationItem[];
+  activeId: string | null;
+}>();
+
+const emits = defineEmits<{
+  onNewChat: [];
+  onSelectConversation: [id: string];
+  onDeleteConversation: [id: string];
+}>();
+
+const handleNewChat = () => {
+  emits('onNewChat');
 };
 
-const getChatModeList = async () => {
-  const res = await getChatMode();
-  chatMode.value = res.data;
-  active.value = res.data[0]?.id ?? '';
-  emits('onGetRole', res.data[0]?.role ?? '');
+const handleSelect = (id: string) => {
+  emits('onSelectConversation', id);
 };
 
-onMounted(() => {
-  getChatModeList();
-});
+const handleDelete = (id: string) => {
+  emits('onDeleteConversation', id);
+};
 </script>

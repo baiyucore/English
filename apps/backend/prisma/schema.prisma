@@ -138,3 +138,12 @@ model Course {
   updatedAt     DateTime       @updatedAt // 更新时间
   courseRecords CourseRecord[]
 }
+
+model ChatPrompt {
+  id        String   @id // UUID
+  role      String   @unique
+  label     String
+  prompt    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

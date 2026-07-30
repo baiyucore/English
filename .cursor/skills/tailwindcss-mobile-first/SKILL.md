@@ -13,9 +13,7 @@ Mobile-first design is the **industry standard for 2025/2026**. With mobile traf
 
 ```html
 <!-- CORRECT: Mobile-first (progressive enhancement) -->
-<div class="text-sm md:text-base lg:text-lg">
-  Start small, enhance upward
-</div>
+<div class="text-sm md:text-base lg:text-lg">Start small, enhance upward</div>
 
 <!-- INCORRECT: Desktop-first (graceful degradation) -->
 <div class="lg:text-lg md:text-base text-sm">
@@ -29,14 +27,14 @@ Mobile-first design is the **industry standard for 2025/2026**. With mobile traf
 
 ### Tailwind's Default Breakpoints
 
-| Prefix | Min-width | Target Devices |
-|--------|-----------|----------------|
-| (none) | 0px | All mobile phones (base) |
-| `sm:` | 640px (40rem) | Large phones, small tablets |
-| `md:` | 768px (48rem) | Tablets (portrait) |
-| `lg:` | 1024px (64rem) | Tablets (landscape), laptops |
-| `xl:` | 1280px (80rem) | Desktops |
-| `2xl:` | 1536px (96rem) | Large desktops |
+| Prefix | Min-width      | Target Devices               |
+| ------ | -------------- | ---------------------------- |
+| (none) | 0px            | All mobile phones (base)     |
+| `sm:`  | 640px (40rem)  | Large phones, small tablets  |
+| `md:`  | 768px (48rem)  | Tablets (portrait)           |
+| `lg:`  | 1024px (64rem) | Tablets (landscape), laptops |
+| `xl:`  | 1280px (80rem) | Desktops                     |
+| `2xl:` | 1536px (96rem) | Large desktops               |
 
 ### Content-Driven Breakpoints
 
@@ -45,14 +43,14 @@ Mobile-first design is the **industry standard for 2025/2026**. With mobile traf
 ```css
 @theme {
   /* Override defaults based on YOUR content needs */
-  --breakpoint-sm: 36rem;  /* 576px - when your content needs more space */
-  --breakpoint-md: 48rem;  /* 768px */
-  --breakpoint-lg: 62rem;  /* 992px - common content width */
-  --breakpoint-xl: 75rem;  /* 1200px */
+  --breakpoint-sm: 36rem; /* 576px - when your content needs more space */
+  --breakpoint-md: 48rem; /* 768px */
+  --breakpoint-lg: 62rem; /* 992px - common content width */
+  --breakpoint-xl: 75rem; /* 1200px */
   --breakpoint-2xl: 90rem; /* 1440px */
 
   /* Add custom breakpoints for specific content needs */
-  --breakpoint-xs: 20rem;  /* 320px - very small devices */
+  --breakpoint-xs: 20rem; /* 320px - very small devices */
   --breakpoint-3xl: 120rem; /* 1920px - ultra-wide */
 }
 ```
@@ -102,20 +100,16 @@ Fluid typography eliminates jarring size jumps between breakpoints:
 
 ```html
 <!-- Fluid heading that scales smoothly -->
-<h1 class="text-fluid-4xl font-bold leading-tight">
-  Responsive Heading
-</h1>
+<h1 class="text-fluid-4xl font-bold leading-tight">Responsive Heading</h1>
 
 <!-- Fluid body text -->
 <p class="text-fluid-base leading-relaxed max-w-prose">
-  Body text that scales proportionally with the viewport
-  while respecting user's font size preferences.
+  Body text that scales proportionally with the viewport while respecting user's
+  font size preferences.
 </p>
 
 <!-- Fluid with breakpoint overrides for fine control -->
-<h2 class="text-fluid-2xl lg:text-fluid-3xl font-semibold">
-  Section Title
-</h2>
+<h2 class="text-fluid-2xl lg:text-fluid-3xl font-semibold">Section Title</h2>
 ```
 
 ## Fluid Spacing System
@@ -163,6 +157,7 @@ Fluid typography eliminates jarring size jumps between breakpoints:
 ### WCAG 2.2 Touch Target Requirements
 
 **Minimum sizes (2025 standards)**:
+
 - **WCAG 2.2 Level AA**: 24x24 CSS pixels minimum
 - **Recommended**: 44x44 CSS pixels (Apple, Google, Microsoft guidelines)
 - **Optimal**: 48x48 CSS pixels for critical actions
@@ -182,9 +177,7 @@ Fluid typography eliminates jarring size jumps between breakpoints:
 </button>
 
 <!-- Optimal for primary actions (48px) -->
-<button class="min-h-12 min-w-12 px-6 py-3 text-base">
-  Primary Action
-</button>
+<button class="min-h-12 min-w-12 px-6 py-3 text-base">Primary Action</button>
 ```
 
 ### Extended Touch Targets
@@ -235,22 +228,22 @@ Container queries enable **component-level responsiveness**, independent of view
 ### Setup
 
 ```css
-@import "tailwindcss";
+@import 'tailwindcss';
 @plugin "@tailwindcss/container-queries";
 ```
 
 ### Container Query Breakpoints
 
-| Class | Min-width |
-|-------|-----------|
-| `@xs` | 20rem (320px) |
-| `@sm` | 24rem (384px) |
-| `@md` | 28rem (448px) |
-| `@lg` | 32rem (512px) |
-| `@xl` | 36rem (576px) |
-| `@2xl` | 42rem (672px) |
-| `@3xl` | 48rem (768px) |
-| `@4xl` | 56rem (896px) |
+| Class  | Min-width      |
+| ------ | -------------- |
+| `@xs`  | 20rem (320px)  |
+| `@sm`  | 24rem (384px)  |
+| `@md`  | 28rem (448px)  |
+| `@lg`  | 32rem (512px)  |
+| `@xl`  | 36rem (576px)  |
+| `@2xl` | 42rem (672px)  |
+| `@3xl` | 48rem (768px)  |
+| `@4xl` | 56rem (896px)  |
 | `@5xl` | 64rem (1024px) |
 
 ### Practical Container Query Patterns
@@ -258,11 +251,13 @@ Container queries enable **component-level responsiveness**, independent of view
 ```html
 <!-- Card that responds to its container, not viewport -->
 <article class="@container">
-  <div class="
+  <div
+    class="
     flex flex-col @sm:flex-row
     gap-4 p-4
     bg-white rounded-xl shadow-sm
-  ">
+  "
+  >
     <img
       src="..."
       class="
@@ -275,16 +270,20 @@ Container queries enable **component-level responsiveness**, independent of view
       <h3 class="text-base @md:text-lg @lg:text-xl font-semibold truncate">
         Card Title
       </h3>
-      <p class="
+      <p
+        class="
         text-sm @md:text-base
         text-gray-600
         line-clamp-2 @lg:line-clamp-3
         mt-2
-      ">
+      "
+      >
         Description that adapts to available space...
       </p>
       <div class="mt-4 flex flex-wrap gap-2 @md:gap-3">
-        <span class="text-xs @md:text-sm px-2 py-1 bg-gray-100 rounded">Tag</span>
+        <span class="text-xs @md:text-sm px-2 py-1 bg-gray-100 rounded"
+          >Tag</span
+        >
       </div>
     </div>
   </div>
@@ -295,23 +294,27 @@ Container queries enable **component-level responsiveness**, independent of view
 
 ```html
 <div class="@container/sidebar w-64">
-  <nav class="
+  <nav
+    class="
     flex flex-col @lg/sidebar:flex-row
     @lg/sidebar:items-center
     gap-2 @lg/sidebar:gap-4
-  ">
+  "
+  >
     <a href="#">Link 1</a>
     <a href="#">Link 2</a>
   </nav>
 </div>
 
 <main class="@container/main flex-1">
-  <div class="
+  <div
+    class="
     grid grid-cols-1
     @md/main:grid-cols-2
     @xl/main:grid-cols-3
     gap-6
-  ">
+  "
+  >
     <!-- Grid items respond to main container -->
   </div>
 </main>
@@ -320,12 +323,12 @@ Container queries enable **component-level responsiveness**, independent of view
 ### When to Use Container vs Viewport Queries
 
 | Use Container Queries | Use Viewport Queries |
-|----------------------|---------------------|
-| Reusable components | Page-level layouts |
-| Sidebar widgets | Navigation bars |
-| Card grids | Hero sections |
-| Embedded content | Full-width sections |
-| CMS/dynamic content | Fixed app shells |
+| --------------------- | -------------------- |
+| Reusable components   | Page-level layouts   |
+| Sidebar widgets       | Navigation bars      |
+| Card grids            | Hero sections        |
+| Embedded content      | Full-width sections  |
+| CMS/dynamic content   | Fixed app shells     |
 
 ## Responsive Layout Patterns
 
@@ -333,13 +336,15 @@ Container queries enable **component-level responsiveness**, independent of view
 
 ```html
 <!-- Auto-responsive grid with minimum card width -->
-<div class="
+<div
+  class="
   grid gap-6
   grid-cols-1
   sm:grid-cols-2
   lg:grid-cols-3
   xl:grid-cols-4
-">
+"
+>
   <!-- Cards automatically flow -->
 </div>
 
@@ -386,36 +391,35 @@ Container queries enable **component-level responsiveness**, independent of view
 <!-- Collapsible sidebar -->
 <div class="flex min-h-screen">
   <!-- Sidebar: hidden on mobile, visible on desktop -->
-  <aside class="
+  <aside
+    class="
     hidden lg:flex lg:flex-col
     w-64 border-r bg-gray-50
-  ">
+  "
+  >
     <nav class="flex-1 p-4">...</nav>
   </aside>
 
   <!-- Main content -->
-  <main class="flex-1 p-4 lg:p-8">
-    Content
-  </main>
+  <main class="flex-1 p-4 lg:p-8">Content</main>
 </div>
 
 <!-- Mobile drawer + desktop sidebar -->
 <div class="relative flex min-h-screen">
   <!-- Mobile drawer overlay -->
-  <div class="
+  <div
+    class="
     fixed inset-0 z-40 lg:hidden
     bg-black/50
     data-[open=false]:hidden
-  " data-open="false">
-    <aside class="w-64 h-full bg-white">
-      Mobile navigation
-    </aside>
+  "
+    data-open="false"
+  >
+    <aside class="w-64 h-full bg-white">Mobile navigation</aside>
   </div>
 
   <!-- Desktop sidebar -->
-  <aside class="hidden lg:block w-64 border-r">
-    Desktop navigation
-  </aside>
+  <aside class="hidden lg:block w-64 border-r">Desktop navigation</aside>
 
   <main class="flex-1">Content</main>
 </div>
@@ -427,30 +431,34 @@ Container queries enable **component-level responsiveness**, independent of view
 <div class="min-h-screen grid grid-rows-[auto_1fr_auto]">
   <!-- Header -->
   <header class="sticky top-0 z-50 h-16 bg-white border-b shadow-sm">
-    <nav class="h-full max-w-7xl mx-auto px-4 flex items-center justify-between">
+    <nav
+      class="h-full max-w-7xl mx-auto px-4 flex items-center justify-between"
+    >
       <Logo />
-      <ul class="hidden md:flex gap-6">...</ul>
+      <ul class="hidden md:flex gap-6">
+        ...
+      </ul>
       <button class="md:hidden min-h-11 min-w-11">Menu</button>
     </nav>
   </header>
 
   <!-- Main content area with optional sidebars -->
-  <div class="
+  <div
+    class="
     grid
     grid-cols-1
     md:grid-cols-[240px_1fr]
     lg:grid-cols-[240px_1fr_280px]
     gap-0
-  ">
+  "
+  >
     <nav class="hidden md:block border-r p-4">Left Nav</nav>
     <main class="p-4 md:p-6 lg:p-8">Main Content</main>
     <aside class="hidden lg:block border-l p-4">Right Sidebar</aside>
   </div>
 
   <!-- Footer -->
-  <footer class="bg-gray-900 text-white py-8 md:py-12">
-    Footer content
-  </footer>
+  <footer class="bg-gray-900 text-white py-8 md:py-12">Footer content</footer>
 </div>
 ```
 
@@ -489,8 +497,8 @@ Container queries enable **component-level responsiveness**, independent of view
 <img
   src="image-800.jpg"
   srcset="
-    image-400.jpg 400w,
-    image-800.jpg 800w,
+    image-400.jpg   400w,
+    image-800.jpg   800w,
     image-1200.jpg 1200w,
     image-1600.jpg 1600w
   "
@@ -511,24 +519,30 @@ Container queries enable **component-level responsiveness**, independent of view
 
 ```html
 <!-- Mobile-first heading scale -->
-<h1 class="
+<h1
+  class="
   text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl
   font-bold leading-tight tracking-tight
-">
+"
+>
   Main Heading
 </h1>
 
-<h2 class="
+<h2
+  class="
   text-xl sm:text-2xl md:text-3xl lg:text-4xl
   font-semibold leading-snug
-">
+"
+>
   Section Heading
 </h2>
 
-<h3 class="
+<h3
+  class="
   text-lg sm:text-xl md:text-2xl
   font-medium
-">
+"
+>
   Subsection Heading
 </h3>
 ```
@@ -538,11 +552,13 @@ Container queries enable **component-level responsiveness**, independent of view
 ```html
 <!-- Optimal line length and spacing -->
 <article class="max-w-prose mx-auto">
-  <p class="
+  <p
+    class="
     text-base md:text-lg
     leading-relaxed md:leading-loose
     text-gray-700 dark:text-gray-300
-  ">
+  "
+  >
     Body text optimized for readability with 45-75 characters per line.
   </p>
 </article>
@@ -575,7 +591,12 @@ Container queries enable **component-level responsiveness**, independent of view
     aria-label="Toggle navigation menu"
   >
     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M4 6h16M4 12h16M4 18h16"
+      />
     </svg>
   </button>
 
@@ -590,10 +611,22 @@ Container queries enable **component-level responsiveness**, independent of view
     "
   >
     <ul class="py-2">
-      <li><a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50">Home</a></li>
-      <li><a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50">Products</a></li>
-      <li><a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50">About</a></li>
-      <li><a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50">Contact</a></li>
+      <li>
+        <a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50">Home</a>
+      </li>
+      <li>
+        <a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50"
+          >Products</a
+        >
+      </li>
+      <li>
+        <a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50">About</a>
+      </li>
+      <li>
+        <a href="#" class="block px-4 py-3 min-h-11 hover:bg-gray-50"
+          >Contact</a
+        >
+      </li>
     </ul>
   </div>
 </nav>
@@ -603,33 +636,44 @@ Container queries enable **component-level responsiveness**, independent of view
 
 ```html
 <!-- Fixed bottom navigation for mobile -->
-<nav class="
+<nav
+  class="
   fixed bottom-0 inset-x-0 z-50
   md:hidden
   bg-white border-t shadow-lg
   safe-area-pb
-">
+"
+>
   <ul class="flex justify-around">
     <li>
-      <a href="#" class="
+      <a
+        href="#"
+        class="
         flex flex-col items-center
         min-h-14 min-w-14 px-3 py-2
         text-xs
         text-gray-600 hover:text-blue-600
         aria-current:text-blue-600
-      ">
+      "
+      >
         <svg class="h-6 w-6 mb-1">...</svg>
         Home
       </a>
     </li>
     <li>
-      <a href="#" class="flex flex-col items-center min-h-14 min-w-14 px-3 py-2 text-xs">
+      <a
+        href="#"
+        class="flex flex-col items-center min-h-14 min-w-14 px-3 py-2 text-xs"
+      >
         <svg class="h-6 w-6 mb-1">...</svg>
         Search
       </a>
     </li>
     <li>
-      <a href="#" class="flex flex-col items-center min-h-14 min-w-14 px-3 py-2 text-xs">
+      <a
+        href="#"
+        class="flex flex-col items-center min-h-14 min-w-14 px-3 py-2 text-xs"
+      >
         <svg class="h-6 w-6 mb-1">...</svg>
         Profile
       </a>
@@ -638,9 +682,7 @@ Container queries enable **component-level responsiveness**, independent of view
 </nav>
 
 <!-- Add padding to main content to prevent overlap -->
-<main class="pb-20 md:pb-0">
-  Content
-</main>
+<main class="pb-20 md:pb-0">Content</main>
 ```
 
 ## Safe Area Handling (Notched Devices)
@@ -673,9 +715,7 @@ Container queries enable **component-level responsiveness**, independent of view
 ```html
 <!-- Header that respects notch -->
 <header class="sticky top-0 safe-area-pt bg-white">
-  <div class="h-16 flex items-center px-4">
-    Navigation
-  </div>
+  <div class="h-16 flex items-center px-4">Navigation</div>
 </header>
 
 <!-- Bottom navigation with safe area -->
@@ -693,9 +733,7 @@ Container queries enable **component-level responsiveness**, independent of view
 <img src="image.jpg" alt="..." loading="lazy" class="w-full h-auto" />
 
 <!-- Lazy load below-fold content -->
-<div class="contents" data-lazy-load>
-  Heavy component loaded on demand
-</div>
+<div class="contents" data-lazy-load>Heavy component loaded on demand</div>
 ```
 
 ### Content Visibility
@@ -709,9 +747,7 @@ Container queries enable **component-level responsiveness**, independent of view
 
 ```html
 <!-- Skip rendering off-screen content -->
-<section class="content-auto">
-  Large section that may be off-screen
-</section>
+<section class="content-auto">Large section that may be off-screen</section>
 ```
 
 ### Reduced Data Usage
@@ -719,10 +755,7 @@ Container queries enable **component-level responsiveness**, independent of view
 ```html
 <!-- Show simpler version on slow connections -->
 <picture>
-  <source
-    srcset="video-poster.jpg"
-    media="(prefers-reduced-data: reduce)"
-  />
+  <source srcset="video-poster.jpg" media="(prefers-reduced-data: reduce)" />
   <img src="animated.gif" alt="..." />
 </picture>
 ```
@@ -796,7 +829,10 @@ Videos without defined dimensions cause layout shift when they load. Use aspect 
 <!-- CLS-safe video with poster and skeleton loader -->
 <div class="relative aspect-video overflow-hidden rounded-lg bg-gray-900">
   <!-- Skeleton placeholder while video loads -->
-  <div class="absolute inset-0 animate-pulse bg-gray-800" aria-hidden="true"></div>
+  <div
+    class="absolute inset-0 animate-pulse bg-gray-800"
+    aria-hidden="true"
+  ></div>
 
   <video
     class="absolute inset-0 w-full h-full object-cover"
@@ -811,13 +847,28 @@ Videos without defined dimensions cause layout shift when they load. Use aspect 
 <!-- Responsive grid of video thumbnails with zero CLS -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
   <div class="aspect-video overflow-hidden rounded-lg bg-gray-900">
-    <video class="w-full h-full object-cover" poster="/thumb1.jpg" preload="none" playsinline></video>
+    <video
+      class="w-full h-full object-cover"
+      poster="/thumb1.jpg"
+      preload="none"
+      playsinline
+    ></video>
   </div>
   <div class="aspect-video overflow-hidden rounded-lg bg-gray-900">
-    <video class="w-full h-full object-cover" poster="/thumb2.jpg" preload="none" playsinline></video>
+    <video
+      class="w-full h-full object-cover"
+      poster="/thumb2.jpg"
+      preload="none"
+      playsinline
+    ></video>
   </div>
   <div class="aspect-video overflow-hidden rounded-lg bg-gray-900">
-    <video class="w-full h-full object-cover" poster="/thumb3.jpg" preload="none" playsinline></video>
+    <video
+      class="w-full h-full object-cover"
+      poster="/thumb3.jpg"
+      preload="none"
+      playsinline
+    ></video>
   </div>
 </div>
 ```
@@ -838,14 +889,19 @@ Videos without defined dimensions cause layout shift when they load. Use aspect 
 <section class="relative w-full h-screen overflow-hidden">
   <video
     class="absolute inset-0 w-full h-full object-cover"
-    autoplay muted loop playsinline
+    autoplay
+    muted
+    loop
+    playsinline
     preload="auto"
   >
     <source src="hero-bg.mp4" type="video/mp4" />
   </video>
 
   <!-- Content overlay with safe padding -->
-  <div class="relative z-10 flex items-center justify-center h-full px-4 sm:px-8">
+  <div
+    class="relative z-10 flex items-center justify-center h-full px-4 sm:px-8"
+  >
     <div class="text-center text-white max-w-2xl">
       <h1 class="text-3xl sm:text-4xl lg:text-6xl font-bold">Hero Title</h1>
       <p class="mt-4 text-lg sm:text-xl">Subtitle text</p>
@@ -863,50 +919,76 @@ Video player controls and UI elements need touch-friendly sizing and proper plac
 
 ```html
 <!-- Custom video player with touch-safe controls -->
-<div class="@container relative aspect-video overflow-hidden rounded-lg bg-black group">
+<div
+  class="@container relative aspect-video overflow-hidden rounded-lg bg-black group"
+>
   <video class="w-full h-full object-cover" playsinline preload="metadata">
     <source src="video.mp4" type="video/mp4" />
   </video>
 
   <!-- Play/Pause overlay - centered, touch-friendly -->
-  <button class="
+  <button
+    class="
     absolute inset-0 flex items-center justify-center
     bg-black/0 group-hover:bg-black/20 transition-colors
-  ">
-    <span class="
+  "
+  >
+    <span
+      class="
       w-16 h-16 sm:w-20 sm:h-20
       flex items-center justify-center
       rounded-full bg-white/90
       shadow-lg
-    ">
-      <svg class="w-8 h-8 sm:w-10 sm:h-10 text-gray-900 ml-1" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M8 5v14l11-7z"/>
+    "
+    >
+      <svg
+        class="w-8 h-8 sm:w-10 sm:h-10 text-gray-900 ml-1"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+      >
+        <path d="M8 5v14l11-7z" />
       </svg>
     </span>
   </button>
 
   <!-- Bottom controls bar - respects touch targets -->
-  <div class="
+  <div
+    class="
     absolute bottom-0 inset-x-0
     bg-linear-to-t from-black/80 to-transparent
     p-3 sm:p-4
     flex items-center gap-3
     opacity-0 group-hover:opacity-100 transition-opacity
-  ">
+  "
+  >
     <!-- Progress bar - tall enough for touch -->
     <div class="flex-1 h-1 bg-white/30 rounded-full cursor-pointer">
       <div class="h-full w-1/3 bg-white rounded-full relative">
-        <span class="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full -mr-2"></span>
+        <span
+          class="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full -mr-2"
+        ></span>
       </div>
     </div>
 
     <!-- Time display -->
-    <span class="text-white text-xs sm:text-sm tabular-nums shrink-0">1:23 / 4:56</span>
+    <span class="text-white text-xs sm:text-sm tabular-nums shrink-0"
+      >1:23 / 4:56</span
+    >
 
     <!-- Fullscreen button - touch-friendly minimum size -->
-    <button class="min-h-11 min-w-11 flex items-center justify-center text-white">
-      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+    <button
+      class="min-h-11 min-w-11 flex items-center justify-center text-white"
+    >
+      <svg
+        class="w-5 h-5"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path
+          d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+        />
       </svg>
     </button>
   </div>
@@ -920,28 +1002,34 @@ Video player components that adapt their layout based on container size --- usef
 ```html
 <!-- Video player that adapts to its container -->
 <div class="@container">
-  <div class="
+  <div
+    class="
     flex flex-col @lg:flex-row
     gap-4 @lg:gap-6
     bg-gray-950 rounded-xl overflow-hidden
-  ">
+  "
+  >
     <!-- Video area -->
-    <div class="
+    <div
+      class="
       w-full @lg:flex-1
       aspect-video
       overflow-hidden
-    ">
+    "
+    >
       <video class="w-full h-full object-cover" playsinline preload="metadata">
         <source src="video.mp4" type="video/mp4" />
       </video>
     </div>
 
     <!-- Info panel - below video on narrow, beside on wide -->
-    <div class="
+    <div
+      class="
       p-4 @lg:p-6
       @lg:w-80 @lg:overflow-y-auto
       text-white
-    ">
+    "
+    >
       <h3 class="text-base @lg:text-lg font-semibold">Video Title</h3>
       <p class="text-sm text-gray-400 mt-2 line-clamp-2 @lg:line-clamp-none">
         Video description that shows more text when the container is wider...
@@ -964,15 +1052,15 @@ Video player components that adapt their layout based on container size --- usef
 
 ## Best Practices Summary
 
-| Practice | Implementation |
-|----------|---------------|
-| Mobile-first utilities | Unprefixed first, then `sm:`, `md:`, `lg:` |
-| Touch targets | `min-h-11 min-w-11` (44px minimum) |
-| Fluid typography | `clamp(min, preferred, max)` with `rem + vw` |
-| Fluid spacing | `clamp()` for padding and margins |
-| Container queries | `@container` for component responsiveness |
-| Safe areas | `env(safe-area-inset-*)` for notched devices |
-| Readable text | `max-w-prose` (65ch) and `leading-relaxed` |
-| Lazy loading | `loading="lazy"` on below-fold images |
-| Touch spacing | `gap-3` (12px) minimum between targets |
-| Viewport meta | `width=device-width, initial-scale=1` |
+| Practice               | Implementation                               |
+| ---------------------- | -------------------------------------------- |
+| Mobile-first utilities | Unprefixed first, then `sm:`, `md:`, `lg:`   |
+| Touch targets          | `min-h-11 min-w-11` (44px minimum)           |
+| Fluid typography       | `clamp(min, preferred, max)` with `rem + vw` |
+| Fluid spacing          | `clamp()` for padding and margins            |
+| Container queries      | `@container` for component responsiveness    |
+| Safe areas             | `env(safe-area-inset-*)` for notched devices |
+| Readable text          | `max-w-prose` (65ch) and `leading-relaxed`   |
+| Lazy loading           | `loading="lazy"` on below-fold images        |
+| Touch spacing          | `gap-3` (12px) minimum between targets       |
+| Viewport meta          | `width=device-width, initial-scale=1`        |

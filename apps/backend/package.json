@@ -9,6 +9,7 @@
     "dev": "nest start server --watch",
     "build": "nest build",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
+    "type-check": "tsc --noEmit -p tsconfig.build.json",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",

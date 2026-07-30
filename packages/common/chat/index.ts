@@ -1,28 +1,33 @@
-export type ChatRole = 'human' | 'ai'; // 角色 human: 用户 ai: 助手
-export type ChatRoleType =
-  | 'normal'
-  | 'master'
-  | 'business'
-  | 'qilinge'
-  | 'xiaoman'; // 角色类型
-//历史记录所返回的对象
+export type ChatMessageRole = 'human' | 'ai'; // 消息角色 human: 用户 ai: 助手
+export type ChatAssistantKey = string; // 助手标识
+export type ChatRole = ChatMessageRole; // 兼容旧命名
+export type ChatRoleType = ChatAssistantKey; // 兼容旧命名
+
+// 历史记录所返回的对象
 export type ChatMessage = {
-  role: ChatRole; // 角色 human: 人类 ai: 机器人
+  role: ChatMessageRole; // 角色 human: 人类 ai: 机器人
   content: string; // 内容
 };
-//历史记录
+
+// 历史记录
 export type ChatMessageList = ChatMessage[];
-//左侧列表所返回的对象
-export type ChatMode = {
-  label: string; // 标签
+
+// 助手列表所返回的对象
+export type ChatAssistant = {
   id: string; // id
-  role: ChatRoleType; // 角色
+  key: ChatAssistantKey; // 助手唯一标识
+  name: string; // 展示名称
 };
-//左侧列表所返回的对象列表
-export type ChatModeList = ChatMode[]; //返回角色列表
-//发送消息所需要的对象
+
+// 兼容旧命名
+export type ChatMode = ChatAssistant;
+export type ChatAssistantList = ChatAssistant[];
+export type ChatModeList = ChatAssistantList;
+
+// 发送消息所需要的对象
 export type ChatDto = {
-  role: ChatRoleType; // 角色
+  assistantKey: ChatAssistantKey; // 助手标识
+  conversationId: string; // 会话 ID
   content: string; // 内容
   userId: string; // 用户id
 };

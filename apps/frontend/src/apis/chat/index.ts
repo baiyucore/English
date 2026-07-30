@@ -1,16 +1,17 @@
 import { aiApi, type Response } from '..';
 import type {
-  ChatModeList,
-  ChatRoleType,
+  ChatAssistantList,
   ChatMessageList,
 } from '@en/common/chat';
 
-export const getChatMode = () => {
-  return aiApi.get('/prompt') as Promise<Response<ChatModeList>>;
+export const getChatAssistants = () => {
+  return aiApi.get('/prompt') as Promise<Response<ChatAssistantList>>;
 };
 
-export const getChatHistory = (userId: string, role: ChatRoleType) => {
-  return aiApi.get(`/chat/history?userId=${userId}&role=${role}`) as Promise<
-    Response<ChatMessageList>
-  >;
+export const getChatMode = getChatAssistants;
+
+export const getChatHistory = (conversationId: string) => {
+  return aiApi.get(
+    `/chat/history?conversationId=${encodeURIComponent(conversationId)}`,
+  ) as Promise<Response<ChatMessageList>>;
 };

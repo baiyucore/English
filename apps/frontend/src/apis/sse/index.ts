@@ -79,9 +79,9 @@ export const fetchSse = async <T>({
       throw new Error('当前浏览器不支持流式读取');
     }
 
-    await readSseStream(response.body, onMessage, onDone);
+    await readSseStream(response.body, onMessage, onDone, signal);
   } catch (error) {
-    if (isAbortError(error)) {
+    if (isAbortError(error) || signal?.aborted) {
       return;
     }
     onError?.(error instanceof Error ? error : new Error('请求失败'));
@@ -92,32 +92,47 @@ async function readSseStream<T>(
   body: ReadableStream<Uint8Array>,
   onMessage?: SseCallbacks<T>['onMessage'],
   onDone?: () => void,
+  signal?: AbortSignal,
 ): Promise<void> {
   const reader = body.getReader();
   const decoder = new TextDecoder('utf-8');
   let buffer = '';
 
-  while (true) {
-    const { value, done } = await reader.read();
+  const onAbort = () => {
+    void reader.cancel();
+  };
+  signal?.addEventListener('abort', onAbort, { once: true });
 
-    if (done) {
-      onDone?.();
-      break;
+  try {
+    while (true) {
+      if (signal?.aborted) {
+        await reader.cancel();
+        break;
+      }
+
+      const { value, done } = await reader.read();
+
+      if (done) {
+        onDone?.();
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() ?? '';
+
+      for (const part of parts) {
+        const line = part.split('\n').find((item) => item.startsWith('data: '));
+
+        if (!line) continue;
+
+        const jsonText = line.replace('data: ', '').trim();
+        if (!jsonText) continue;
+
+        onMessage?.(JSON.parse(jsonText) as T);
+      }
     }
-
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split('\n\n');
-    buffer = parts.pop() ?? '';
-
-    for (const part of parts) {
-      const line = part.split('\n').find((item) => item.startsWith('data: '));
-
-      if (!line) continue;
-
-      const jsonText = line.replace('data: ', '').trim();
-      if (!jsonText) continue;
-
-      onMessage?.(JSON.parse(jsonText) as T);
-    }
+  } finally {
+    signal?.removeEventListener('abort', onAbort);
   }
 }
