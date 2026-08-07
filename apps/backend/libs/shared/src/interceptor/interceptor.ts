@@ -33,14 +33,15 @@ export class InterceptorInterceptor implements NestInterceptor {
     const request = ctx.getRequest<Request>();
     return next.handle().pipe(
       map((data: any) => {
+        const code = data?.code || 200;
         return {
           timestamp: new Date().toISOString(),
           path: request.url,
 
           message: data?.message || '请求成功',
 
-          code: data?.code || 200,
-          success: true,
+          code,
+          success: code === 200,
           data: transformBigInt(data?.data) ?? null,
         };
       }),

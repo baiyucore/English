@@ -5,6 +5,5 @@ export type ConversationItem = {
   title: string;
   messages: ChatMessageList;
   assistantKey: ChatAssistantKey;
-  assistantName: string;
   updatedAt: number;
 };

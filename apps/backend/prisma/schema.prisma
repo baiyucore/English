@@ -7,17 +7,15 @@
 // prisma 默认是使用 ESM （ import xxx  from ''
 // Nest.Js 打包生产的是使用 cjs （ commonJS ）requires {xxx}
 
-
 generator client {
-  provider = "prisma-client"
-  output   = "../libs/shared/src/generated/prisma"
+  provider     = "prisma-client"
+  output       = "../libs/shared/src/generated/prisma"
   moduleFormat = "cjs" // 模块格式 主要是针对 Nest.JS 的模块格式，
 }
 
 datasource db {
   provider = "postgresql"
 }
-
 
 enum TradeStatus {
   NOT_PAY // 未支付 默认值非支付宝枚举 自定义
@@ -26,26 +24,55 @@ enum TradeStatus {
   TRADE_SUCCESS // 交易成功 可退款
   TRADE_FINISHED // 交易结束 不可退款
 }
+
+enum ChatConversationStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ChatMessageRole {
+  HUMAN
+  AI
+  SYSTEM
+  TOOL
+}
+
+enum ChatAttachmentStatus {
+  UPLOADED
+  READY
+  ERROR
+}
+
+enum LlmRunStatus {
+  SUCCESS
+  FAILED
+}
+
 //用户表
 model User {
-  id              String           @id @default(cuid()) // 用户ID
-  name            String // 用户名
-  email           String?          @unique // 邮箱
-  phone           String           @unique // 手机号
-  address         String? // 地址
-  password        String // 密码
-  avatar          String? // 头像
-  bio             String? // 签名 
-  isTimingTask    Boolean          @default(false) // 是否开启定时任务 第七集新增字段
-  timingTaskTime  String           @default("00:00:00") //定时任务
-  wordNumber      Int              @default(0) // 单词数量
-  dayNumber       Int              @default(0) // 打卡天数
-  createdAt       DateTime         @default(now()) // 创建时间
-  updatedAt       DateTime         @updatedAt // 更新时间
-  lastLoginAt     DateTime? // 最后登录时间
-  wordBookRecords WordBookRecord[]
-  paymentRecords  PaymentRecord[]
-  courseRecords   CourseRecord[]
+  id                String             @id @default(cuid()) // 用户ID
+  name              String // 用户名
+  email             String?            @unique // 邮箱
+  phone             String             @unique // 手机号
+  address           String? // 地址
+  password          String // 密码
+  avatar            String? // 头像
+  bio               String? // 签名 
+  isTimingTask      Boolean            @default(false) // 是否开启定时任务 第七集新增字段
+  timingTaskTime    String             @default("00:00:00") //定时任务
+  wordNumber        Int                @default(0) // 单词数量
+  dayNumber         Int                @default(0) // 打卡天数
+  createdAt         DateTime           @default(now()) // 创建时间
+  updatedAt         DateTime           @updatedAt // 更新时间
+  lastLoginAt       DateTime? // 最后登录时间
+  wordBookRecords   WordBookRecord[]
+  paymentRecords    PaymentRecord[]
+  courseRecords     CourseRecord[]
+  chatPrompts       ChatPrompt[] // 旧 agent 对话配置，后续迁移完成后可清理
+  chatAssistants    ChatAssistant[]
+  chatConversations ChatConversation[]
+  chatAttachments   ChatAttachment[]
+  llmRuns           LlmRun[]
 }
 
 //记录已操作的单词
@@ -108,6 +135,7 @@ model PaymentRecord {
   updatedAt     DateTime       @updatedAt // 更新时间
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   courseRecords CourseRecord[]
+
   @@index([tradeNo])
 }
 
@@ -141,9 +169,109 @@ model Course {
 
 model ChatPrompt {
   id        String   @id // UUID
-  role      String   @unique
-  label     String
+  userId    String // 用户ID
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   prompt    String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model ChatAssistant {
+  id            String             @id // UUID
+  userId        String // 用户ID
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String             @default("英语学习助手")
+  prompt        String
+  isDefault     Boolean            @default(false)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  conversations ChatConversation[]
+
+  @@index([userId])
+  @@index([userId, isDefault])
+}
+
+model ChatConversation {
+  id            String                 @id // UUID
+  userId        String // 用户ID
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assistantId   String
+  assistant     ChatAssistant          @relation(fields: [assistantId], references: [id], onDelete: Cascade)
+  title         String                 @default("新聊天")
+  status        ChatConversationStatus @default(ACTIVE)
+  lastMessageAt DateTime?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  messages      ChatMessage[]
+  attachments   ChatAttachment[]
+
+  @@index([userId, updatedAt])
+  @@index([assistantId])
+  @@index([status])
+}
+
+model ChatMessage {
+  id             String           @id @default(cuid())
+  conversationId String
+  conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           ChatMessageRole
+  content        String
+  metadata       Json?
+  createdAt      DateTime         @default(now())
+  attachments    ChatAttachment[]
+
+  @@index([conversationId, createdAt])
+}
+
+model ChatAttachment {
+  id             String               @id @default(cuid())
+  userId         String // 用户ID
+  user           User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversationId String
+  conversation   ChatConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messageId      String?
+  message        ChatMessage?         @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  fileName       String
+  mimeType       String?
+  size           Int?
+  storageKey     String?
+  url            String?
+  textContent    String?
+  status         ChatAttachmentStatus @default(UPLOADED)
+  metadata       Json?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([conversationId])
+  @@index([messageId])
+  @@index([status])
+}
+
+/// LLM 单次调用统计，供 Analytics 模型数据看板使用
+model LlmRun {
+  id                String       @id @default(cuid())
+  userId            String?
+  user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  conversationId    String?
+  scene             String       @default("自由对话")
+  provider          String
+  model             String
+  promptVersion     String       @default("v1")
+  inputTokens       Int          @default(0)
+  cachedInputTokens Int          @default(0)
+  outputTokens      Int          @default(0)
+  firstTokenMs      Int          @default(0)
+  durationMs        Int          @default(0)
+  costCents         Float        @default(0)
+  qualityScore      Int?
+  status            LlmRunStatus @default(SUCCESS)
+  createdAt         DateTime     @default(now())
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([model, createdAt])
+  @@index([status])
 }

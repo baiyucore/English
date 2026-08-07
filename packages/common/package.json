@@ -2,12 +2,21 @@
   "name": "@en/common",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
+  "type": "module",
   "license": "ISC",
-  "packageManager": "pnpm@10.26.1"
+  "packageManager": "pnpm@10.26.1",
+  "exports": {
+    "./chat": "./chat/index.ts",
+    "./user": "./user/index.ts",
+    "./word": "./word/index.ts",
+    "./metrics": "./metrics/index.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "chat": ["chat/index.ts"],
+      "user": ["user/index.ts"],
+      "word": ["word/index.ts"],
+      "metrics": ["metrics/index.ts"]
+    }
+  }
 }

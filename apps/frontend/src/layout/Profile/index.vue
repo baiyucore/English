@@ -95,15 +95,17 @@
 import avatar from '@/assets/images/avatar/default-avatar.png';
 import { useRouter } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { useLogin } from '@/hooks/useLogin';
 import { computed } from 'vue';
 const router = useRouter();
 const userStore = useUserStore();
+const { login } = useLogin();
 const isLoggedIn = computed(() => !!userStore.getUser);
 const displayName = computed(() => userStore.getUser?.name ?? '游客');
 const bio = computed(() => userStore.getUser?.bio ?? '');
 
 const loginHandle = () => {
-  router.push('/login');
+  login().catch(() => {});
 };
 
 const gotoPath = (path: string) => {

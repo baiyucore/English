@@ -11,9 +11,9 @@
       <div class="text-2xl font-bold">English App</div>
       <template v-for="route in routes" :key="route.path">
         <div
-          @click="router.push(route.path)"
           :class="isActive(route.path)"
           class="flex items-center gap-2 cursor-pointer rounded-[10px] px-2 py-1"
+          @click="router.push(route.path)"
         >
           <el-icon>
             <component :is="route.icon" />
@@ -68,6 +68,7 @@ import {
   MagicStick,
   Reading,
   Setting,
+  DataAnalysis,
 } from '@element-plus/icons-vue';
 import { useRouter } from 'vue-router';
 import { watch, ref } from 'vue';
@@ -80,6 +81,7 @@ const currentPath = ref('');
 const routes = [
   { path: '/', name: '主页', icon: HomeFilled },
   { path: '/chat/index', name: 'AI', icon: MagicStick },
+  { path: '/analytics/overview', name: '数据', icon: DataAnalysis },
   { path: '/word-book/index', name: '词库', icon: Notebook },
   { path: '/courses/index', name: '课程', icon: Reading },
   { path: '/setting/index', name: '设置', icon: Setting },

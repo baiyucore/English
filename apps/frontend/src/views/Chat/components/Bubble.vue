@@ -1,8 +1,8 @@
 <template>
-  <div class="flex h-[750px] flex-1 flex-col bg-purple-50 p-5">
+  <div class="flex h-full min-w-0 flex-1 flex-col bg-purple-50">
     <div
       v-if="showEmpty"
-      class="flex flex-1 flex-col items-center justify-center gap-3"
+      class="flex flex-1 flex-col items-center justify-center gap-3 px-5"
     >
       <div
         class="flex size-16 items-center justify-center rounded-full bg-white shadow-md"
@@ -48,70 +48,74 @@
       </div>
     </div>
 
-    <div v-else class="flex flex-1 flex-col overflow-hidden">
-      <div class="flex-1 overflow-y-auto">
-        <div v-for="(item, index) in list" :key="index">
-          <div
-            v-if="item.role === 'human'"
-            class="mb-5 mt-5 mr-5 flex items-center justify-end gap-4"
-          >
+    <template v-else>
+      <div class="min-h-0 flex-1 overflow-y-auto px-5">
+        <div class="mx-auto max-w-3xl">
+          <div v-for="(item, index) in list" :key="index">
             <div
-              class="max-w-[80%] rounded-lg bg-blue-500 p-2 text-sm text-white shadow-md"
+              v-if="item.role === 'human'"
+              class="mb-5 mt-5 flex items-center justify-end gap-4"
             >
-              {{ item.content }}
+              <div
+                class="max-w-[80%] rounded-lg bg-blue-500 p-2 text-sm text-white shadow-md"
+              >
+                {{ item.content }}
+              </div>
+              <div>
+                <el-avatar :size="35"> user </el-avatar>
+              </div>
             </div>
-            <div>
-              <el-avatar :size="35"> user </el-avatar>
+            <div v-else class="mb-5 mt-5 flex items-center justify-start gap-4">
+              <div>
+                <el-avatar :size="35"> AI </el-avatar>
+              </div>
+              <div
+                v-if="item.role === 'ai' && item.content !== ''"
+                class="max-w-[80%] rounded-lg bg-white p-2 text-sm text-gray-700 shadow-md"
+                v-html="parseMarkdown(item.content)"
+              />
             </div>
           </div>
-          <div v-else class="mb-5 mt-5 flex items-center justify-start gap-4">
-            <div>
-              <el-avatar :size="35"> AI </el-avatar>
-            </div>
-            <div
-              v-if="item.role === 'ai' && item.content !== ''"
-              class="max-w-[80%] rounded-lg bg-white p-2 text-sm text-gray-700 shadow-md"
-              v-html="parseMarkdown(item.content)"
-            />
-          </div>
+          <div ref="chatRef" />
         </div>
-        <div ref="chatRef" />
       </div>
-    </div>
 
-    <div v-if="!showEmpty" class="box-border border-t border-gray-200 pt-4">
-      <div class="mx-auto w-full max-w-3xl rounded-3xl border bg-background p-2 shadow-sm">
-        <Textarea
-          v-model="message"
-          placeholder="给 AI 发送消息"
-          :disabled="isStreaming"
-          class="min-h-20 resize-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:ring-0"
-          @keydown="handleTextareaKeydown"
-        />
-        <div class="flex justify-end">
-          <Button
-            v-if="isStreaming"
-            type="button"
-            variant="destructive"
-            size="icon"
-            aria-label="中断回复"
-            @click="abortMessage"
-          >
-            <SquareIcon />
-          </Button>
-          <Button
-            v-else
-            type="button"
-            size="icon"
-            aria-label="发送消息"
-            :disabled="!canSend"
-            @click="sendMessage"
-          >
-            <ArrowUpIcon />
-          </Button>
+      <div class="shrink-0 border-t border-gray-200 px-5 pt-4 pb-5">
+        <div
+          class="mx-auto w-full max-w-3xl rounded-3xl border bg-background p-2 shadow-sm"
+        >
+          <Textarea
+            v-model="message"
+            placeholder="给 AI 发送消息"
+            :disabled="isStreaming"
+            class="min-h-20 resize-none border-0 bg-transparent px-3 py-2 shadow-none focus-visible:ring-0"
+            @keydown="handleTextareaKeydown"
+          />
+          <div class="flex justify-end">
+            <Button
+              v-if="isStreaming"
+              type="button"
+              variant="destructive"
+              size="icon"
+              aria-label="中断回复"
+              @click="abortMessage"
+            >
+              <SquareIcon />
+            </Button>
+            <Button
+              v-else
+              type="button"
+              size="icon"
+              aria-label="发送消息"
+              :disabled="!canSend"
+              @click="sendMessage"
+            >
+              <ArrowUpIcon />
+            </Button>
+          </div>
         </div>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 

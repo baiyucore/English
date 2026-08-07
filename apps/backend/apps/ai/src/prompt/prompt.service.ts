@@ -2,12 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService, ResponseService } from '@libs/shared';
 import { SYSTEM_PROMPT } from './prompt.mode';
-import { CreatePromptDto } from './dto/create-prompt.dto';
 import { AgentService } from '../agent/agent.service';
-
-const DEFAULT_ASSISTANT_ID = 'a0000000-0000-4000-8000-000000000001';
-const DEFAULT_ASSISTANT_KEY = 'normal';
-const DEFAULT_ASSISTANT_NAME = '💬 智能助手';
 
 @Injectable()
 export class PromptService implements OnModuleInit {
@@ -18,170 +13,189 @@ export class PromptService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.seedDefaultPromptIfNeeded();
-    const modes = await this.prisma.chatPrompt.findMany({
-      orderBy: { createdAt: 'asc' },
+    const assistants = await this.prisma.chatAssistant.findMany({
+      orderBy: { updatedAt: 'asc' },
     });
-    for (const mode of modes) {
-      this.agentService.registerAssistant(this.toAssistantConfig(mode));
+    for (const assistant of assistants) {
+      this.agentService.registerAssistant(this.toAssistantConfig(assistant));
     }
   }
 
-  async findAll() {
-    const list = await this.prisma.chatPrompt.findMany({
-      orderBy: { createdAt: 'asc' },
+  async findAll(userId: string) {
+    const normalizedUserId = userId?.trim();
+    if (!normalizedUserId) {
+      return this.responseService.error(null, '请提供用户 id', 400);
+    }
+
+    const list = await this.prisma.chatConversation.findMany({
+      where: { userId: normalizedUserId, status: 'ACTIVE' },
+      orderBy: { updatedAt: 'desc' },
     });
     return this.responseService.success(
-      list.map((item) => this.toPromptSummary(item)),
+      list.map((item) => this.toConversationSummary(item)),
     );
   }
 
-  async create(createPromptDto: CreatePromptDto) {
-    const normalized = this.normalizeCreatePromptInput(createPromptDto);
-    if ('message' in normalized) {
-      return this.responseService.error(null, normalized.message ?? '', 400);
+  async create(userId: string, title?: string) {
+    const normalizedUserId = userId?.trim();
+    if (!normalizedUserId) {
+      return this.responseService.error(null, '请提供用户 id', 400);
     }
 
-    const existing = await this.prisma.chatPrompt.findFirst({
-      where: { role: normalized.key },
-    });
-    if (existing) {
-      return this.responseService.error(
-        null,
-        '助手标识已存在，请更换后重试',
-        409,
-      );
-    }
-
-    const item = await this.prisma.chatPrompt.create({
+    const assistant = await this.ensureDefaultAssistant(normalizedUserId);
+    const conversation = await this.prisma.chatConversation.create({
       data: {
         id: randomUUID(),
-        role: normalized.key,
-        label: normalized.name,
-        prompt: SYSTEM_PROMPT,
+        userId: normalizedUserId,
+        assistantId: assistant.id,
+        // 暂无首条消息时用「新聊天」；有传入内容则裁剪作为临时标题
+        title: createConversationTitle(title),
       },
     });
-    this.agentService.registerAssistant(this.toAssistantConfig(item));
-    return this.responseService.success(this.toPromptSummary(item));
+    return this.responseService.success(
+      this.toConversationSummary(conversation),
+    );
   }
 
-  async remove(id: string) {
-    const existing = await this.prisma.chatPrompt.findUnique({
-      where: { id },
+  async search(userId: string, keyword?: string) {
+    const normalizedUserId = userId?.trim();
+    if (!normalizedUserId) {
+      return this.responseService.error(null, '请提供用户 id', 400);
+    }
+
+    const normalizedKeyword = keyword?.trim();
+    if (!normalizedKeyword) {
+      return this.findAll(normalizedUserId);
+    }
+
+    const list = await this.prisma.chatConversation.findMany({
+      where: {
+        userId: normalizedUserId,
+        status: 'ACTIVE',
+        OR: [
+          { title: { contains: normalizedKeyword, mode: 'insensitive' } },
+          {
+            messages: {
+              some: {
+                content: { contains: normalizedKeyword, mode: 'insensitive' },
+              },
+            },
+          },
+        ],
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: 50,
+      include: {
+        messages: {
+          where: {
+            content: { contains: normalizedKeyword, mode: 'insensitive' },
+          },
+          orderBy: { createdAt: 'asc' },
+          take: 1,
+          select: { content: true },
+        },
+      },
+    });
+
+    return this.responseService.success(
+      list.map((item) => ({
+        ...this.toConversationSummary(item),
+        snippet: buildSearchSnippet(
+          item.messages[0]?.content,
+          normalizedKeyword,
+        ),
+      })),
+    );
+  }
+
+  async remove(conversationId: string, userId: string) {
+    const normalizedUserId = userId?.trim();
+    if (!normalizedUserId) {
+      return this.responseService.error(null, '请提供用户 id', 400);
+    }
+
+    const existing = await this.prisma.chatConversation.findFirst({
+      where: { id: conversationId, userId: normalizedUserId },
     });
     if (!existing) {
-      return this.responseService.error(null, '助手不存在', 404);
+      return this.responseService.error(null, '对话不存在', 404);
     }
 
-    if (existing.role === DEFAULT_ASSISTANT_KEY) {
-      return this.responseService.error(null, '默认助手不支持删除', 400);
-    }
-
-    await this.prisma.chatPrompt.delete({
-      where: { id },
+    await this.prisma.chatConversation.delete({
+      where: { id: conversationId },
     });
-    this.agentService.unregisterAssistant(existing.role);
-    return this.responseService.success(this.toPromptSummary(existing));
+    try {
+      await this.agentService.deleteThread(existing.id);
+    } catch (error) {
+      // 会话记录已删，checkpoint 清理失败不影响主流程
+      console.error('清理会话 checkpoint 失败', existing.id, error);
+    }
+    return this.responseService.success(this.toConversationSummary(existing));
   }
 
-  private async seedDefaultPromptIfNeeded() {
-    const count = await this.prisma.chatPrompt.count();
-    if (count > 0) return;
+  private async ensureDefaultAssistant(userId: string) {
+    const existing = await this.prisma.chatAssistant.findFirst({
+      where: { userId, isDefault: true },
+      orderBy: { updatedAt: 'desc' },
+    });
+    if (existing) {
+      this.agentService.registerAssistant(this.toAssistantConfig(existing));
+      return existing;
+    }
 
-    await this.prisma.chatPrompt.create({
+    const assistant = await this.prisma.chatAssistant.create({
       data: {
-        id: DEFAULT_ASSISTANT_ID,
-        role: DEFAULT_ASSISTANT_KEY,
-        label: DEFAULT_ASSISTANT_NAME,
+        id: randomUUID(),
+        userId,
+        name: '英语学习助手',
         prompt: SYSTEM_PROMPT,
+        isDefault: true,
       },
     });
+    this.agentService.registerAssistant(this.toAssistantConfig(assistant));
+    return assistant;
   }
 
-  private toPromptSummary(item: { id: string; role: string; label: string }) {
-    return {
-      id: item.id,
-      key: item.role,
-      name: item.label,
-    };
-  }
-
-  private toAssistantConfig(item: {
+  private toConversationSummary(item: {
     id: string;
-    role: string;
-    label: string;
-    prompt: string;
+    assistantId: string;
+    title: string;
+    updatedAt: Date;
   }) {
     return {
       id: item.id,
-      key: item.role,
-      name: item.label,
-      prompt: item.prompt,
+      assistantKey: item.assistantId,
+      title: item.title,
+      updatedAt: item.updatedAt.toISOString(),
     };
   }
 
-  private normalizeCreatePromptInput(createPromptDto: CreatePromptDto) {
-    const name =
-      normalizeOptionalText(createPromptDto.name) ??
-      normalizeOptionalText(createPromptDto.label);
-    const keyInput =
-      normalizeOptionalText(createPromptDto.key) ??
-      normalizeOptionalText(createPromptDto.role);
-
-    if (!name && !keyInput) {
-      return { message: '请至少提供一个助手名称或助手标识' } as const;
-    }
-
-    if (name && name.length > 30) {
-      return { message: '助手名称不能超过 30 个字符' } as const;
-    }
-
-    const key = keyInput
-      ? normalizeAssistantKey(keyInput)
-      : buildAssistantKeyFromName(name ?? '');
-    if (!key) {
-      return {
-        message: '助手标识仅支持字母、数字、空格、短横线和下划线',
-      } as const;
-    }
-
+  // 将数据库中的数据转换为 agent 配置
+  private toAssistantConfig(item: { id: string; prompt: string }) {
     return {
-      key,
-      name: name ?? formatAssistantName(key),
-    } as const;
+      id: item.id,
+      prompt: item.prompt,
+    };
   }
 }
 
-function normalizeOptionalText(value?: string | null): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
+/** 临时方案：用首条问题原文裁剪作标题，后续可换成 LLM 摘要 */
+function createConversationTitle(content?: string): string {
+  const title = content?.trim();
+  if (!title) return '新聊天';
+  return title.length > 24 ? `${title.slice(0, 24)}...` : title;
 }
 
-function normalizeAssistantKey(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_]+/g, '-')
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+function buildSearchSnippet(content: string | undefined, keyword: string) {
+  if (!content) return '';
+  const trimmed = content.trim();
+  if (!trimmed) return '';
+  if (trimmed.length <= 80) return trimmed;
 
-function buildAssistantKeyFromName(name: string): string {
-  const normalized = normalizeAssistantKey(name);
-  return normalized || `chat-${randomUUID().slice(0, 8)}`;
-}
+  const index = trimmed.toLowerCase().indexOf(keyword.toLowerCase());
+  if (index < 0) return `${trimmed.slice(0, 80)}...`;
 
-function formatAssistantName(key: string): string {
-  const text = key
-    .split('-')
-    .filter(Boolean)
-    .map((segment) => segment[0]?.toUpperCase() + segment.slice(1))
-    .join(' ');
-
-  return text || '新聊天';
+  const start = Math.max(0, index - 20);
+  const end = Math.min(trimmed.length, index + keyword.length + 40);
+  return `${start > 0 ? '…' : ''}${trimmed.slice(start, end)}${end < trimmed.length ? '…' : ''}`;
 }
