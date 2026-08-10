@@ -1,15 +1,29 @@
-import { Controller, Get, Post, Body, Res, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { AgentService } from './agent.service';
-import type { ChatDto } from '@en/common/chat';
 import type { Response } from 'express';
 import { openSseReply, writeSseEvent } from './stream/sse';
+import { AuthGuard, CurrentUser } from '@libs/shared';
+import { ChatRequestDto } from './dto/chat.dto';
 
 @Controller('chat')
+@UseGuards(AuthGuard)
 export class AgentController {
   constructor(private readonly agentService: AgentService) {}
 
   @Post()
-  async stream(@Body() chatDto: ChatDto, @Res() res: Response) {
+  async stream(
+    @Body() chatDto: ChatRequestDto,
+    @CurrentUser('userId') userId: string,
+    @Res() res: Response,
+  ) {
     const abortController = new AbortController();
 
     res.on('close', () => {
@@ -19,7 +33,7 @@ export class AgentController {
 
     try {
       await this.agentService.stream(
-        chatDto,
+        { ...chatDto, userId },
         (event) => {
           writeSseEvent(res, event);
         },
@@ -41,7 +55,7 @@ export class AgentController {
   @Get('history')
   findAll(
     @Query('conversationId') conversationId: string,
-    @Query('userId') userId?: string,
+    @CurrentUser('userId') userId: string,
   ) {
     return this.agentService.findAll(conversationId, userId);
   }

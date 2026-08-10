@@ -51,6 +51,8 @@ export type LlmRunMinAggregateOutputType = {
   userId: string | null
   conversationId: string | null
   scene: string | null
+  route: string | null
+  skillId: string | null
   provider: string | null
   model: string | null
   promptVersion: string | null
@@ -70,6 +72,8 @@ export type LlmRunMaxAggregateOutputType = {
   userId: string | null
   conversationId: string | null
   scene: string | null
+  route: string | null
+  skillId: string | null
   provider: string | null
   model: string | null
   promptVersion: string | null
@@ -89,6 +93,8 @@ export type LlmRunCountAggregateOutputType = {
   userId: number
   conversationId: number
   scene: number
+  route: number
+  skillId: number
   provider: number
   model: number
   promptVersion: number
@@ -130,6 +136,8 @@ export type LlmRunMinAggregateInputType = {
   userId?: true
   conversationId?: true
   scene?: true
+  route?: true
+  skillId?: true
   provider?: true
   model?: true
   promptVersion?: true
@@ -149,6 +157,8 @@ export type LlmRunMaxAggregateInputType = {
   userId?: true
   conversationId?: true
   scene?: true
+  route?: true
+  skillId?: true
   provider?: true
   model?: true
   promptVersion?: true
@@ -168,6 +178,8 @@ export type LlmRunCountAggregateInputType = {
   userId?: true
   conversationId?: true
   scene?: true
+  route?: true
+  skillId?: true
   provider?: true
   model?: true
   promptVersion?: true
@@ -274,6 +286,8 @@ export type LlmRunGroupByOutputType = {
   userId: string | null
   conversationId: string | null
   scene: string
+  route: string | null
+  skillId: string | null
   provider: string
   model: string
   promptVersion: string
@@ -316,6 +330,8 @@ export type LlmRunWhereInput = {
   userId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   conversationId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   scene?: Prisma.StringFilter<"LlmRun"> | string
+  route?: Prisma.StringNullableFilter<"LlmRun"> | string | null
+  skillId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   provider?: Prisma.StringFilter<"LlmRun"> | string
   model?: Prisma.StringFilter<"LlmRun"> | string
   promptVersion?: Prisma.StringFilter<"LlmRun"> | string
@@ -336,6 +352,8 @@ export type LlmRunOrderByWithRelationInput = {
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
   conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   scene?: Prisma.SortOrder
+  route?: Prisma.SortOrderInput | Prisma.SortOrder
+  skillId?: Prisma.SortOrderInput | Prisma.SortOrder
   provider?: Prisma.SortOrder
   model?: Prisma.SortOrder
   promptVersion?: Prisma.SortOrder
@@ -359,6 +377,8 @@ export type LlmRunWhereUniqueInput = Prisma.AtLeast<{
   userId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   conversationId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   scene?: Prisma.StringFilter<"LlmRun"> | string
+  route?: Prisma.StringNullableFilter<"LlmRun"> | string | null
+  skillId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   provider?: Prisma.StringFilter<"LlmRun"> | string
   model?: Prisma.StringFilter<"LlmRun"> | string
   promptVersion?: Prisma.StringFilter<"LlmRun"> | string
@@ -379,6 +399,8 @@ export type LlmRunOrderByWithAggregationInput = {
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
   conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   scene?: Prisma.SortOrder
+  route?: Prisma.SortOrderInput | Prisma.SortOrder
+  skillId?: Prisma.SortOrderInput | Prisma.SortOrder
   provider?: Prisma.SortOrder
   model?: Prisma.SortOrder
   promptVersion?: Prisma.SortOrder
@@ -406,6 +428,8 @@ export type LlmRunScalarWhereWithAggregatesInput = {
   userId?: Prisma.StringNullableWithAggregatesFilter<"LlmRun"> | string | null
   conversationId?: Prisma.StringNullableWithAggregatesFilter<"LlmRun"> | string | null
   scene?: Prisma.StringWithAggregatesFilter<"LlmRun"> | string
+  route?: Prisma.StringNullableWithAggregatesFilter<"LlmRun"> | string | null
+  skillId?: Prisma.StringNullableWithAggregatesFilter<"LlmRun"> | string | null
   provider?: Prisma.StringWithAggregatesFilter<"LlmRun"> | string
   model?: Prisma.StringWithAggregatesFilter<"LlmRun"> | string
   promptVersion?: Prisma.StringWithAggregatesFilter<"LlmRun"> | string
@@ -424,6 +448,8 @@ export type LlmRunCreateInput = {
   id?: string
   conversationId?: string | null
   scene?: string
+  route?: string | null
+  skillId?: string | null
   provider: string
   model: string
   promptVersion?: string
@@ -444,6 +470,8 @@ export type LlmRunUncheckedCreateInput = {
   userId?: string | null
   conversationId?: string | null
   scene?: string
+  route?: string | null
+  skillId?: string | null
   provider: string
   model: string
   promptVersion?: string
@@ -462,6 +490,8 @@ export type LlmRunUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scene?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  skillId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   model?: Prisma.StringFieldUpdateOperationsInput | string
   promptVersion?: Prisma.StringFieldUpdateOperationsInput | string
@@ -482,6 +512,8 @@ export type LlmRunUncheckedUpdateInput = {
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scene?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  skillId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   model?: Prisma.StringFieldUpdateOperationsInput | string
   promptVersion?: Prisma.StringFieldUpdateOperationsInput | string
@@ -501,6 +533,8 @@ export type LlmRunCreateManyInput = {
   userId?: string | null
   conversationId?: string | null
   scene?: string
+  route?: string | null
+  skillId?: string | null
   provider: string
   model: string
   promptVersion?: string
@@ -519,6 +553,8 @@ export type LlmRunUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scene?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  skillId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   model?: Prisma.StringFieldUpdateOperationsInput | string
   promptVersion?: Prisma.StringFieldUpdateOperationsInput | string
@@ -538,6 +574,8 @@ export type LlmRunUncheckedUpdateManyInput = {
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scene?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  skillId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   model?: Prisma.StringFieldUpdateOperationsInput | string
   promptVersion?: Prisma.StringFieldUpdateOperationsInput | string
@@ -567,6 +605,8 @@ export type LlmRunCountOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   conversationId?: Prisma.SortOrder
   scene?: Prisma.SortOrder
+  route?: Prisma.SortOrder
+  skillId?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   model?: Prisma.SortOrder
   promptVersion?: Prisma.SortOrder
@@ -596,6 +636,8 @@ export type LlmRunMaxOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   conversationId?: Prisma.SortOrder
   scene?: Prisma.SortOrder
+  route?: Prisma.SortOrder
+  skillId?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   model?: Prisma.SortOrder
   promptVersion?: Prisma.SortOrder
@@ -615,6 +657,8 @@ export type LlmRunMinOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   conversationId?: Prisma.SortOrder
   scene?: Prisma.SortOrder
+  route?: Prisma.SortOrder
+  skillId?: Prisma.SortOrder
   provider?: Prisma.SortOrder
   model?: Prisma.SortOrder
   promptVersion?: Prisma.SortOrder
@@ -697,6 +741,8 @@ export type LlmRunCreateWithoutUserInput = {
   id?: string
   conversationId?: string | null
   scene?: string
+  route?: string | null
+  skillId?: string | null
   provider: string
   model: string
   promptVersion?: string
@@ -715,6 +761,8 @@ export type LlmRunUncheckedCreateWithoutUserInput = {
   id?: string
   conversationId?: string | null
   scene?: string
+  route?: string | null
+  skillId?: string | null
   provider: string
   model: string
   promptVersion?: string
@@ -763,6 +811,8 @@ export type LlmRunScalarWhereInput = {
   userId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   conversationId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   scene?: Prisma.StringFilter<"LlmRun"> | string
+  route?: Prisma.StringNullableFilter<"LlmRun"> | string | null
+  skillId?: Prisma.StringNullableFilter<"LlmRun"> | string | null
   provider?: Prisma.StringFilter<"LlmRun"> | string
   model?: Prisma.StringFilter<"LlmRun"> | string
   promptVersion?: Prisma.StringFilter<"LlmRun"> | string
@@ -781,6 +831,8 @@ export type LlmRunCreateManyUserInput = {
   id?: string
   conversationId?: string | null
   scene?: string
+  route?: string | null
+  skillId?: string | null
   provider: string
   model: string
   promptVersion?: string
@@ -799,6 +851,8 @@ export type LlmRunUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scene?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  skillId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   model?: Prisma.StringFieldUpdateOperationsInput | string
   promptVersion?: Prisma.StringFieldUpdateOperationsInput | string
@@ -817,6 +871,8 @@ export type LlmRunUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scene?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  skillId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   model?: Prisma.StringFieldUpdateOperationsInput | string
   promptVersion?: Prisma.StringFieldUpdateOperationsInput | string
@@ -835,6 +891,8 @@ export type LlmRunUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   scene?: Prisma.StringFieldUpdateOperationsInput | string
+  route?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  skillId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   provider?: Prisma.StringFieldUpdateOperationsInput | string
   model?: Prisma.StringFieldUpdateOperationsInput | string
   promptVersion?: Prisma.StringFieldUpdateOperationsInput | string
@@ -856,6 +914,8 @@ export type LlmRunSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs =
   userId?: boolean
   conversationId?: boolean
   scene?: boolean
+  route?: boolean
+  skillId?: boolean
   provider?: boolean
   model?: boolean
   promptVersion?: boolean
@@ -876,6 +936,8 @@ export type LlmRunSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extens
   userId?: boolean
   conversationId?: boolean
   scene?: boolean
+  route?: boolean
+  skillId?: boolean
   provider?: boolean
   model?: boolean
   promptVersion?: boolean
@@ -896,6 +958,8 @@ export type LlmRunSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extens
   userId?: boolean
   conversationId?: boolean
   scene?: boolean
+  route?: boolean
+  skillId?: boolean
   provider?: boolean
   model?: boolean
   promptVersion?: boolean
@@ -916,6 +980,8 @@ export type LlmRunSelectScalar = {
   userId?: boolean
   conversationId?: boolean
   scene?: boolean
+  route?: boolean
+  skillId?: boolean
   provider?: boolean
   model?: boolean
   promptVersion?: boolean
@@ -930,7 +996,7 @@ export type LlmRunSelectScalar = {
   createdAt?: boolean
 }
 
-export type LlmRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "conversationId" | "scene" | "provider" | "model" | "promptVersion" | "inputTokens" | "cachedInputTokens" | "outputTokens" | "firstTokenMs" | "durationMs" | "costCents" | "qualityScore" | "status" | "createdAt", ExtArgs["result"]["llmRun"]>
+export type LlmRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "conversationId" | "scene" | "route" | "skillId" | "provider" | "model" | "promptVersion" | "inputTokens" | "cachedInputTokens" | "outputTokens" | "firstTokenMs" | "durationMs" | "costCents" | "qualityScore" | "status" | "createdAt", ExtArgs["result"]["llmRun"]>
 export type LlmRunInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.LlmRun$userArgs<ExtArgs>
 }
@@ -951,6 +1017,14 @@ export type $LlmRunPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs
     userId: string | null
     conversationId: string | null
     scene: string
+    /**
+     * 能力路由，例如 translation；未命中专项能力时为 null
+     */
+    route: string | null
+    /**
+     * 命中的 Skill id；Phase 1 与 route 通常相同
+     */
+    skillId: string | null
     provider: string
     model: string
     promptVersion: string
@@ -1391,6 +1465,8 @@ export interface LlmRunFieldRefs {
   readonly userId: Prisma.FieldRef<"LlmRun", 'String'>
   readonly conversationId: Prisma.FieldRef<"LlmRun", 'String'>
   readonly scene: Prisma.FieldRef<"LlmRun", 'String'>
+  readonly route: Prisma.FieldRef<"LlmRun", 'String'>
+  readonly skillId: Prisma.FieldRef<"LlmRun", 'String'>
   readonly provider: Prisma.FieldRef<"LlmRun", 'String'>
   readonly model: Prisma.FieldRef<"LlmRun", 'String'>
   readonly promptVersion: Prisma.FieldRef<"LlmRun", 'String'>

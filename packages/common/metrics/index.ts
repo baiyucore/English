@@ -6,6 +6,10 @@ export type LlmRun = {
   id: string;
   createdAt: string;
   scene: string;
+  /** 能力路由，例如 translation；未命中专项能力时为 null */
+  route: string | null;
+  /** 命中的 Skill id；未命中时为 null */
+  skillId: string | null;
   provider: string;
   model: string;
   promptVersion: string;
@@ -15,7 +19,8 @@ export type LlmRun = {
   firstTokenMs: number;
   durationMs: number;
   costCents: number;
-  qualityScore: number;
+  /** 尚未评测时为 null，不应伪装成 0 分 */
+  qualityScore: number | null;
   status: LlmRunStatus;
 };
 

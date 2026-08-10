@@ -41,7 +41,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-2.5 px-4 pb-3 pt-2" v-if="isLoggedIn">
+    <div v-if="isLoggedIn" class="grid grid-cols-2 gap-2.5 px-4 pb-3 pt-2">
       <div
         class="rounded-xl border border-slate-900/5 bg-white/65 px-2.5 py-2.5"
       >
@@ -100,9 +100,13 @@ import { computed } from 'vue';
 const router = useRouter();
 const userStore = useUserStore();
 const { login } = useLogin();
-const isLoggedIn = computed(() => !!userStore.getUser);
-const displayName = computed(() => userStore.getUser?.name ?? '游客');
-const bio = computed(() => userStore.getUser?.bio ?? '');
+const isLoggedIn = computed(() => userStore.isLoggedIn);
+const displayName = computed(() =>
+  userStore.isLoggedIn ? (userStore.getUser?.name ?? '游客') : '游客',
+);
+const bio = computed(() =>
+  userStore.isLoggedIn ? (userStore.getUser?.bio ?? '') : '',
+);
 
 const loginHandle = () => {
   login().catch(() => {});

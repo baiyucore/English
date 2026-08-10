@@ -1,15 +1,21 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { randomUUID } from 'node:crypto';
 import { createCheckerPoint, createDeepSeek } from '../llm/llm.config';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
 import type { AIMessageChunk, ReactAgent } from 'langchain';
-import type { ChatAssistantItem } from '../prompt/prompt.mode';
-import { createAgent } from 'langchain';
+import { createAgent, dynamicSystemPromptMiddleware } from 'langchain';
 import { ChatDto } from '@en/common/chat';
 import { PrismaService, ResponseService } from '@libs/shared';
 import type { AgentStreamEmit } from './stream/agent-stream-event';
+import { skillRegistry, formatSkillsForPrompt } from './skills';
 import { englishLearningTools } from './tools';
 import { MetricsService } from '../metrics/metrics.service';
+import {
+  buildSystemPrompt,
+  promptRuntimeContextSchema,
+  type PromptRuntimeContext,
+} from '../prompt';
 
 export interface AgentRunOptions {
   signal?: AbortSignal;
@@ -24,7 +30,7 @@ type UsageAccumulator = {
 @Injectable()
 export class AgentService implements OnModuleInit {
   private checkerPoint!: PostgresSaver;
-  private assistants: Map<string, ReactAgent> = new Map();
+  private agent!: ReactAgent<any>;
 
   constructor(
     private readonly responseService: ResponseService,
@@ -35,20 +41,18 @@ export class AgentService implements OnModuleInit {
 
   async onModuleInit() {
     this.checkerPoint = await createCheckerPoint();
-  }
-
-  registerAssistant(mode: ChatAssistantItem) {
-    const agent = createAgent({
+    const skillsHint = formatSkillsForPrompt(skillRegistry.list());
+    this.agent = createAgent({
       model: createDeepSeek(),
       checkpointer: this.checkerPoint,
-      systemPrompt: mode.prompt,
+      contextSchema: promptRuntimeContextSchema,
+      middleware: [
+        dynamicSystemPromptMiddleware<PromptRuntimeContext>((_, runtime) =>
+          buildSystemPrompt(runtime.context, skillsHint),
+        ),
+      ],
       tools: englishLearningTools,
     });
-    this.assistants.set(mode.id, agent);
-  }
-
-  unregisterAssistant(key: string) {
-    this.assistants.delete(key);
   }
 
   async stream(
@@ -61,6 +65,8 @@ export class AgentService implements OnModuleInit {
     let assistantContent = '';
     let status: 'success' | 'failed' = 'success';
     let scene = '自由对话';
+    let route: string | null = null;
+    let skillId: string | null = null;
     const usage: UsageAccumulator = {
       inputTokens: 0,
       cachedInputTokens: 0,
@@ -85,6 +91,13 @@ export class AgentService implements OnModuleInit {
 
         const [msg] = chunk;
         mergeUsageFromMessage(usage, msg as AIMessageChunk);
+
+        const detected = detectActiveSkill(msg);
+        if (detected) {
+          // Phase 1：route 与 skillId 同为能力标识（如 translation）
+          route = detected;
+          skillId = detected;
+        }
 
         if (msg.getType() !== 'ai' || !msg.content) continue;
         if (typeof msg.content !== 'string') continue;
@@ -126,6 +139,8 @@ export class AgentService implements OnModuleInit {
           userId: chatDto.userId,
           conversationId: chatDto.conversationId,
           scene,
+          route,
+          skillId,
           provider,
           model,
           promptVersion: 'v1',
@@ -189,22 +204,7 @@ export class AgentService implements OnModuleInit {
     await this.checkerPoint.deleteThread(id);
   }
 
-  private ensureAssistant(mode: ChatAssistantItem): ReactAgent {
-    let agent = this.assistants.get(mode.id);
-    if (!agent) {
-      this.registerAssistant(mode);
-      agent = this.assistants.get(mode.id);
-    }
-    if (!agent) {
-      throw new Error('Agent not found');
-    }
-    return agent;
-  }
-
-  private async createCompletionStream(
-    chatDto: ChatDto,
-    signal?: AbortSignal,
-  ) {
+  private async createCompletionStream(chatDto: ChatDto, signal?: AbortSignal) {
     const conversationId = chatDto.conversationId?.trim();
     const userId = chatDto.userId?.trim();
     if (!conversationId || !userId) {
@@ -213,7 +213,6 @@ export class AgentService implements OnModuleInit {
 
     const conversation = await this.prisma.chatConversation.findFirst({
       where: { id: conversationId, userId, status: 'ACTIVE' },
-      include: { assistant: true },
     });
     if (!conversation) {
       throw new Error('Conversation not found');
@@ -226,10 +225,20 @@ export class AgentService implements OnModuleInit {
       throw new Error('Agent not found');
     }
 
-    const agent = this.ensureAssistant({
-      id: conversation.assistant.id,
-      prompt: conversation.assistant.prompt,
-    });
+    const attachmentIds = [...new Set(chatDto.attachmentIds ?? [])];
+    if (attachmentIds.length > 0) {
+      const readyAttachmentCount = await this.prisma.chatAttachment.count({
+        where: {
+          id: { in: attachmentIds },
+          userId,
+          conversationId,
+          status: 'READY',
+        },
+      });
+      if (readyAttachmentCount !== attachmentIds.length) {
+        throw new Error('附件不存在、未就绪或无权访问');
+      }
+    }
 
     await this.prisma.chatMessage.create({
       data: {
@@ -255,13 +264,21 @@ export class AgentService implements OnModuleInit {
         ? conversation.title
         : '自由对话';
 
-    const stream = await agent.stream(
+    const stream = await this.agent.stream(
       {
         messages: [{ role: 'human', content: chatDto.content }],
       },
       {
         configurable: {
           thread_id: conversationId,
+          userId,
+          assistantId: conversation.assistantId,
+          attachmentIds,
+          traceId: randomUUID(),
+        },
+        context: {
+          conversationTitle: conversation.title,
+          attachmentCount: attachmentIds.length,
         },
         streamMode: 'messages',
         signal,
@@ -319,6 +336,77 @@ function createConversationTitle(content: string): string {
   const title = content.trim();
   if (!title) return '新聊天';
   return title.length > 24 ? `${title.slice(0, 24)}...` : title;
+}
+
+function detectActiveSkill(msg: unknown): string | null {
+  const loaded = detectLoadedSkillName(msg);
+  if (loaded && skillRegistry.get(loaded)) {
+    return loaded;
+  }
+
+  const toolNames = collectToolNames(msg);
+  for (const name of toolNames) {
+    if (name === 'list_skills' || name === 'load_skill') continue;
+    const skill = skillRegistry.findByToolName(name);
+    if (skill) {
+      return skill.id;
+    }
+  }
+  return null;
+}
+
+function detectLoadedSkillName(msg: unknown): string | null {
+  if (!msg || typeof msg !== 'object') return null;
+
+  const record = msg as {
+    tool_calls?: Array<{
+      name?: string;
+      args?: Record<string, unknown>;
+    }>;
+  };
+
+  for (const call of record.tool_calls ?? []) {
+    if (call?.name !== 'load_skill') continue;
+    const skillName = call.args?.skillName;
+    if (typeof skillName === 'string' && skillName.trim()) {
+      return skillName.trim();
+    }
+  }
+
+  return null;
+}
+
+function collectToolNames(msg: unknown): string[] {
+  if (!msg || typeof msg !== 'object') return [];
+
+  const record = msg as {
+    getType?: () => string;
+    name?: string;
+    tool_calls?: Array<{ name?: string }>;
+    tool_call_chunks?: Array<{ name?: string }>;
+  };
+
+  const names: string[] = [];
+
+  if (typeof record.getType === 'function' && record.getType() === 'tool') {
+    if (typeof record.name === 'string' && record.name) {
+      names.push(record.name);
+    }
+  }
+
+  for (const call of record.tool_calls ?? []) {
+    if (typeof call?.name === 'string' && call.name) {
+      names.push(call.name);
+    }
+  }
+
+  for (const chunk of record.tool_call_chunks ?? []) {
+    if (typeof chunk?.name === 'string' && chunk.name) {
+      names.push(chunk.name);
+    }
+  }
+
+  return names;
 }
 
 function normalizeMessageContent(content: AIMessageChunk['content']): string {
@@ -415,10 +503,9 @@ function estimateCostCents(
   outputTokens: number,
 ): number {
   const billableInput = Math.max(0, inputTokens - cachedInputTokens);
-  const rates =
-    model.includes('reasoner')
-      ? { input: 55, cached: 14, output: 219 }
-      : { input: 14, cached: 1.4, output: 28 };
+  const rates = model.includes('reasoner')
+    ? { input: 55, cached: 14, output: 219 }
+    : { input: 14, cached: 1.4, output: 28 };
 
   const costYuan =
     (billableInput * rates.input +

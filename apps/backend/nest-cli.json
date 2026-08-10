@@ -18,7 +18,14 @@
       "entryFile": "main",
       "sourceRoot": "apps/ai/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/ai/tsconfig.app.json"
+        "tsConfigPath": "apps/ai/tsconfig.app.json",
+        "assets": [
+          {
+            "include": "agent/skills/**/*.md",
+            "watchAssets": true,
+            "outDir": "dist/apps/ai/apps/ai/src"
+          }
+        ]
       }
     },
     "server": {

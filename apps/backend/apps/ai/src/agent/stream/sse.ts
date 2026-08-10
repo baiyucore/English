@@ -15,15 +15,10 @@ export function openSseReply(res: Response): void {
   res.flushHeaders?.();
 }
 
-export function writeSseEvent(
-  res: Response,
-  event: AgentStreamEvent,
-): boolean {
+export function writeSseEvent(res: Response, event: AgentStreamEvent): boolean {
   if (res.writableEnded || res.destroyed) {
     return false;
   }
 
-  return res.write(
-    `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`,
-  );
+  return res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
 }

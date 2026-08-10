@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "nest start server --watch",
-    "build": "nest build",
+    "build": "nest build && node scripts/copy-ai-skill-assets.mjs",
     "format": "prettier --write \"apps/**/*.ts\" \"libs/**/*.ts\"",
     "type-check": "tsc --noEmit -p tsconfig.build.json",
     "start": "nest start",
@@ -36,13 +36,16 @@
     "@prisma/adapter-pg": "^7.3.0",
     "@prisma/client": "^7.3.0",
     "@types/multer": "^2.1.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.4",
     "dotenv": "^17.2.3",
     "langchain": "^1.4.2",
     "minio": "^8.0.7",
     "prisma": "^7.3.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "yaml": "^2.9.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

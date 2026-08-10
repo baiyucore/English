@@ -6,7 +6,11 @@ type CreateDeepSeekOptions = {
   temperature?: number;
   maxTokens?: number;
   streaming?: boolean;
+  timeout?: number;
 };
+
+/** 模型请求的最终硬上限；用户 Abort 仍然可以更早终止请求。 */
+export const MODEL_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const createDeepSeek = (options: CreateDeepSeekOptions = {}) => {
   const configService = new ConfigService();
@@ -16,6 +20,7 @@ export const createDeepSeek = (options: CreateDeepSeekOptions = {}) => {
     temperature: options.temperature ?? 1.3,
     maxTokens: options.maxTokens ?? 4096,
     streaming: options.streaming ?? true,
+    timeout: options.timeout ?? MODEL_REQUEST_TIMEOUT_MS,
   });
 };
 

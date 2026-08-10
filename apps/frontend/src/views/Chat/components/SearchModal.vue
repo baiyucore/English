@@ -8,7 +8,9 @@
       <div
         class="flex max-h-[70vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl"
       >
-        <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+        <div
+          class="flex items-center justify-between border-b border-gray-100 px-4 py-3"
+        >
           <h2 class="text-sm font-medium text-gray-800">搜索聊天</h2>
           <div class="flex items-center gap-1">
             <button
@@ -117,7 +119,7 @@ const isApiOk = <T,>(res: { code?: number; data?: T } | null | undefined) => {
 };
 
 const runSearch = async (keyword: string) => {
-  const userId = userStore.user?.id;
+  const userId = userStore.isLoggedIn ? userStore.user?.id : undefined;
   if (!userId) {
     results.value = [];
     return;
@@ -126,7 +128,7 @@ const runSearch = async (keyword: string) => {
   const seq = ++searchSeq;
   loading.value = true;
   try {
-    const res = await searchChatConversations(userId, keyword);
+    const res = await searchChatConversations(keyword);
     if (seq !== searchSeq) return;
     if (!isApiOk(res) || !Array.isArray(res.data)) {
       results.value = [];

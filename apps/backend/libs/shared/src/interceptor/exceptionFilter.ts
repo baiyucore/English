@@ -12,12 +12,24 @@ export class ExceptionFilterFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
+    const status = exception.getStatus();
+    const exceptionResponse = exception.getResponse();
 
-    response.status(exception.getStatus()).json({
+    const message =
+      typeof exceptionResponse === 'string'
+        ? exceptionResponse
+        : Array.isArray((exceptionResponse as { message?: unknown }).message)
+          ? (exceptionResponse as { message: string[] }).message.join('; ')
+          : typeof (exceptionResponse as { message?: unknown }).message ===
+              'string'
+            ? (exceptionResponse as { message: string }).message
+            : exception.message;
+
+    response.status(status).json({
       timestamp: new Date().toISOString(),
       path: request.url,
-      message: exception.message,
-      code: exception.getStatus(),
+      message,
+      code: status,
       success: false,
     });
   }

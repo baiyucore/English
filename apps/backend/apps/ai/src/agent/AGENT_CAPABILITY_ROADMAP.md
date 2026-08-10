@@ -425,7 +425,6 @@ RAG：
 - `parentRunId`
 - `route`
 - `skillId`
-- `skillVersion`
 - `graphVersion`
 - `promptHash`
 - `agentConfigHash`
@@ -589,9 +588,9 @@ LLM-as-judge 只能作为自动化辅助。先人工检查一批 judge 结果，
    - 何时追问。
    - 术语保持规则。
    - 输出 Schema。
-   - `skillVersion = translation-v1`。
+   - 能力标识固定为 `translation`，不引入 Skill 版本字段。
 4. 在系统 Prompt 中明确何时调用翻译能力。
-5. Run 记录 `route=translation`、`skillId`、`skillVersion`。
+5. Run 记录 `route=translation`、`skillId`。
 6. SSE 后续可以新增 `metadata` 事件，让前端区分译文、备选和解释；第一版也可先转成可读文本。
 
 ### 单元测试
@@ -922,7 +921,7 @@ pnpm build
 - `qualityScore` 保持 nullable。
 - 记录 aborted。
 - 修复 200 条截断聚合。
-- 给 Run 增加 assistantId、route、skillVersion、promptHash、agentConfigHash 和 traceId。
+- 给 Run 增加 assistantId、route、promptHash、agentConfigHash 和 traceId。
 - 将 Tool 内部 LLM 调用计入成本，并用 parentRunId 关联主 Run。
 - 写 metrics 单测。
 
@@ -1080,7 +1079,7 @@ pnpm build
 
 - [ ] 这次只解决一个明确能力或一个基础问题。
 - [ ] 有固定输入和预期验收标准。
-- [ ] 新增/修改的 Prompt、Skill、Graph、模型有版本号。
+- [ ] 新增/修改的 Prompt、Skill、Graph、模型定义清晰且可追踪。
 - [ ] Unit、Integration 或 Eval 至少覆盖一种。
 - [ ] 与上一版本使用同一批 Eval Case。
 - [ ] 同时比较质量、p95 延迟、成本和失败率。
@@ -1089,7 +1088,7 @@ pnpm build
 - [ ] RAG/MCP/附件都按 token 用户做权限隔离。
 - [ ] 外部内容被视为不可信数据。
 - [ ] 失败时能降级，不泄漏内部错误和敏感信息。
-- [ ] 看板能按 route、skillVersion 和 variant 定位变化。
+- [ ] 看板能按 route 和 variant 定位变化。
 
 ---
 

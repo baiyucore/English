@@ -18,6 +18,8 @@ export type RecordLlmRunInput = {
   userId?: string | null;
   conversationId?: string | null;
   scene?: string;
+  route?: string | null;
+  skillId?: string | null;
   provider: string;
   model: string;
   promptVersion?: string;
@@ -53,6 +55,8 @@ export class MetricsService {
               OR: [
                 { model: { contains: keyword, mode: 'insensitive' } },
                 { scene: { contains: keyword, mode: 'insensitive' } },
+                { route: { contains: keyword, mode: 'insensitive' } },
+                { skillId: { contains: keyword, mode: 'insensitive' } },
                 { promptVersion: { contains: keyword, mode: 'insensitive' } },
                 { provider: { contains: keyword, mode: 'insensitive' } },
               ],
@@ -78,6 +82,8 @@ export class MetricsService {
           userId: input.userId?.trim() || null,
           conversationId: input.conversationId?.trim() || null,
           scene: input.scene?.trim() || '自由对话',
+          route: input.route?.trim() || null,
+          skillId: input.skillId?.trim() || null,
           provider: input.provider,
           model: input.model,
           promptVersion: input.promptVersion?.trim() || 'v1',
@@ -91,9 +97,7 @@ export class MetricsService {
           durationMs: Math.max(0, Math.round(input.durationMs ?? 0)),
           costCents: Number((input.costCents ?? 0).toFixed(4)),
           qualityScore:
-            input.qualityScore == null
-              ? null
-              : Math.round(input.qualityScore),
+            input.qualityScore == null ? null : Math.round(input.qualityScore),
           status: input.status === 'failed' ? 'FAILED' : 'SUCCESS',
         },
       });
@@ -121,6 +125,8 @@ function toLlmRunDto(run: {
   id: string;
   createdAt: Date;
   scene: string;
+  route: string | null;
+  skillId: string | null;
   provider: string;
   model: string;
   promptVersion: string;
@@ -137,6 +143,8 @@ function toLlmRunDto(run: {
     id: run.id,
     createdAt: formatCreatedAt(run.createdAt),
     scene: run.scene,
+    route: run.route,
+    skillId: run.skillId,
     provider: run.provider,
     model: run.model,
     promptVersion: run.promptVersion,
@@ -146,7 +154,7 @@ function toLlmRunDto(run: {
     firstTokenMs: run.firstTokenMs,
     durationMs: run.durationMs,
     costCents: Number(run.costCents.toFixed(2)),
-    qualityScore: run.qualityScore ?? 0,
+    qualityScore: run.qualityScore,
     status: run.status === 'FAILED' ? 'failed' : 'success',
   };
 }

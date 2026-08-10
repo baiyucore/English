@@ -4,6 +4,13 @@ export type ChatConversationId = string; // 会话标识
 export type ChatConversationStatus = 'active' | 'archived'; // 会话状态
 export type ChatAttachmentStatus = 'uploaded' | 'ready' | 'error'; // 附件处理状态
 
+/** 单条用户消息最大字符数（trim 后） */
+export const CHAT_CONTENT_MAX_LENGTH = 8_000;
+/** 单次请求最多关联的附件数 */
+export const CHAT_ATTACHMENT_IDS_MAX = 10;
+/** 会话 / 附件 ID 最大长度 */
+export const CHAT_ID_MAX_LENGTH = 64;
+
 // 历史记录所返回的对象
 export type ChatMessage = {
   id?: string; // 消息唯一标识
@@ -53,10 +60,16 @@ export type ChatAttachment = {
 // 发送消息所需要的对象
 export type ChatDto = {
   assistantKey: ChatAssistantKey; // 助手 id
-  conversationId: string; // 会话 ID
-  content: string; // 内容
-  userId: string; // 用户id
+  conversationId: ChatConversationId; // 会话 ID（UUID）
+  /** 用户消息正文；trim 后非空，且不超过 CHAT_CONTENT_MAX_LENGTH */
+  content: string;
+  userId: string; // 用户id（服务端从 JWT 注入，勿信任客户端）
+  /** 可选附件 ID 列表；最多 CHAT_ATTACHMENT_IDS_MAX 个 */
+  attachmentIds?: string[];
 };
+
+/** 客户端请求体（不含由服务端注入的 userId） */
+export type ChatRequestDto = Omit<ChatDto, 'userId'>;
 
 export type ChatStreamEvent =
   | {

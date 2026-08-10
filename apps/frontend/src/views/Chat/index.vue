@@ -20,7 +20,7 @@ import Conversations from './components/Conversations.vue';
 import Bubble from './components/Bubble.vue';
 import { sse, fetchSse, CHAT_URL } from '@/apis/sse';
 import { useUserStore } from '@/stores/user';
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import type {
   ChatAssistantKey,
   ChatMessageList,
@@ -41,7 +41,9 @@ const userStore = useUserStore();
 const conversations = ref<ConversationItem[]>([]);
 const activeConversationId = ref<string | null>(null);
 const list = ref<ChatMessageList>([]);
-const userId = userStore.user?.id;
+const userId = computed(() =>
+  userStore.isLoggedIn ? userStore.user?.id : undefined,
+);
 const assistantKey = ref<ChatAssistantKey>('');
 const isStreaming = ref(false);
 let abortController: AbortController | null = null;
@@ -63,10 +65,10 @@ const isApiOk = <T,>(res: { code?: number; data?: T } | null | undefined) => {
 };
 
 const loadConversations = async () => {
-  if (!userId) return;
+  if (!userId.value) return;
 
   try {
-    const res = await getChatAssistants(userId);
+    const res = await getChatAssistants();
     if (!isApiOk(res) || !Array.isArray(res.data)) return;
 
     conversations.value = res.data.map((item) => ({
@@ -95,10 +97,10 @@ const startNewChat = () => {
 };
 
 const loadConversationHistory = async (conversation: ConversationItem) => {
-  if (!userId) return;
+  if (!userId.value) return;
 
   try {
-    const res = await getChatHistory(conversation.id, userId);
+    const res = await getChatHistory(conversation.id);
     if (!isApiOk(res) || !Array.isArray(res.data)) return;
 
     conversation.messages = res.data.map((item) => ({
@@ -137,13 +139,13 @@ const selectConversation = async (id: string) => {
 };
 
 const deleteConversation = async (id: string) => {
-  if (isStreaming.value || !userId) return;
+  if (isStreaming.value || !userId.value) return;
 
   const index = conversations.value.findIndex((item) => item.id === id);
   if (index === -1) return;
 
   try {
-    const res = await removeChatAssistant(id, userId);
+    const res = await removeChatAssistant(id);
     if (!isApiOk(res)) return;
   } catch (error) {
     console.error(error);
@@ -202,11 +204,11 @@ const abortMessage = () => {
 const ensureActiveConversation = async (message: string) => {
   const activeConversation = getActiveConversation();
   if (activeConversation) return activeConversation;
-  if (!userId) {
+  if (!userId.value) {
     throw new Error('用户未登录');
   }
 
-  const res = await createChatAssistant(userId, message);
+  const res = await createChatAssistant(message);
   if (!isApiOk(res) || !res.data?.id) {
     throw new Error(res?.message || '创建会话失败');
   }
@@ -255,7 +257,6 @@ const sendMessage = async (message: string) => {
     assistantKey: conversation.assistantKey,
     conversationId: conversation.id,
     content: message,
-    userId: userId!,
   };
 
   abortController = new AbortController();

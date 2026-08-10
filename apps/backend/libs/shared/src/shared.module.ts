@@ -5,10 +5,11 @@ import { ResponseModule } from './response/response.module';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MinioModule } from './minio/minio.module';
+import { AuthGuard } from './auth/auth.guard';
 
 @Global()
 @Module({
-  providers: [SharedService],
+  providers: [SharedService, AuthGuard],
   exports: [
     SharedService,
     PrismaModule,
@@ -16,6 +17,7 @@ import { MinioModule } from './minio/minio.module';
     JwtModule,
     ConfigModule,
     MinioModule,
+    AuthGuard,
   ],
   imports: [
     PrismaModule,
@@ -29,7 +31,7 @@ import { MinioModule } from './minio/minio.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         secret: configService.get('SECRET_KEY'),
-        signOptions: { expiresIn: '10' },
+        signOptions: { expiresIn: '2h' },
       }),
     }),
     MinioModule,

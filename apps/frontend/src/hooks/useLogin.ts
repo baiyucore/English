@@ -7,7 +7,7 @@ export const useLogin = () => {
   const userStore = useUserStore();
   const login = () => {
     return new Promise((resolve, reject) => {
-      if (userStore.getUser) {
+      if (userStore.isLoggedIn) {
         resolve(true);
       } else {
         isShowLogin.value = true;

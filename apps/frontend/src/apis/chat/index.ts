@@ -5,14 +5,12 @@ import type {
   ChatMessageList,
 } from '@en/common/chat';
 
-export const getChatAssistants = (userId: string) => {
-  return aiApi.get(`/prompt?userId=${encodeURIComponent(userId)}`) as Promise<
-    Response<ChatConversationList>
-  >;
+export const getChatAssistants = () => {
+  return aiApi.get('/prompt') as Promise<Response<ChatConversationList>>;
 };
 
-export const createChatAssistant = (userId: string, title?: string) => {
-  const params = new URLSearchParams({ userId });
+export const createChatAssistant = (title?: string) => {
+  const params = new URLSearchParams();
   const trimmedTitle = title?.trim();
   if (trimmedTitle) {
     params.set('title', trimmedTitle);
@@ -22,14 +20,14 @@ export const createChatAssistant = (userId: string, title?: string) => {
   >;
 };
 
-export const removeChatAssistant = (id: string, userId: string) => {
-  return aiApi.delete(
-    `/prompt/${encodeURIComponent(id)}?userId=${encodeURIComponent(userId)}`,
-  ) as Promise<Response<ChatConversation>>;
+export const removeChatAssistant = (id: string) => {
+  return aiApi.delete(`/prompt/${encodeURIComponent(id)}`) as Promise<
+    Response<ChatConversation>
+  >;
 };
 
-export const searchChatConversations = (userId: string, keyword: string) => {
-  const params = new URLSearchParams({ userId });
+export const searchChatConversations = (keyword: string) => {
+  const params = new URLSearchParams();
   const trimmed = keyword.trim();
   if (trimmed) {
     params.set('keyword', trimmed);
@@ -39,8 +37,8 @@ export const searchChatConversations = (userId: string, keyword: string) => {
   >;
 };
 
-export const getChatHistory = (conversationId: string, userId: string) => {
+export const getChatHistory = (conversationId: string) => {
   return aiApi.get(
-    `/chat/history?conversationId=${encodeURIComponent(conversationId)}&userId=${encodeURIComponent(userId)}`,
+    `/chat/history?conversationId=${encodeURIComponent(conversationId)}`,
   ) as Promise<Response<ChatMessageList>>;
 };

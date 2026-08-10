@@ -28,7 +28,7 @@
           <Sunny />
         </el-icon>
         <span class="font-bold text-sm">{{
-          userStore.getUser?.wordNumber ?? 0
+          userStore.isLoggedIn ? (userStore.getUser?.wordNumber ?? 0) : 0
         }}</span>
       </div>
       <div
@@ -38,7 +38,7 @@
           <Star />
         </el-icon>
         <span class="font-bold text-sm">{{
-          userStore.getUser?.dayNumber ?? 0
+          userStore.isLoggedIn ? (userStore.getUser?.dayNumber ?? 0) : 0
         }}</span>
       </div>
 
@@ -49,7 +49,9 @@
           >
             <img class="w-10 h-10 rounded-full ml-2 mr-2" :src="avatar" />
             <span class="text-sm font-bold">{{
-              userStore.getUser?.name ?? '游客'
+              userStore.isLoggedIn
+                ? (userStore.getUser?.name ?? '游客')
+                : '游客'
             }}</span>
           </div>
         </template>

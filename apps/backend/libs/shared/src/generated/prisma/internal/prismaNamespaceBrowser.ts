@@ -262,6 +262,8 @@ export const LlmRunScalarFieldEnum = {
   userId: 'userId',
   conversationId: 'conversationId',
   scene: 'scene',
+  route: 'route',
+  skillId: 'skillId',
   provider: 'provider',
   model: 'model',
   promptVersion: 'promptVersion',

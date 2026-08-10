@@ -226,7 +226,9 @@
                 }}</template>
               </el-table-column>
               <el-table-column label="评分" width="90">
-                <template #default="{ row }">{{ row.qualityScore }}</template>
+                <template #default="{ row }">{{
+                  row.qualityScore ?? '--'
+                }}</template>
               </el-table-column>
               <el-table-column label="首 token" width="110">
                 <template #default="{ row }">{{ row.firstTokenMs }}ms</template>
@@ -251,7 +253,7 @@
           <el-input
             v-model="keyword"
             class="w-full sm:w-[260px]"
-            placeholder="筛选模型或场景"
+            placeholder="筛选模型、场景、路由或 Skill"
             clearable
           />
         </div>
@@ -259,7 +261,13 @@
         <div class="overflow-x-auto p-4">
           <el-table :data="filteredRuns" size="small" class="min-w-[920px]">
             <el-table-column prop="createdAt" label="时间" width="150" />
-            <el-table-column prop="scene" label="场景" min-width="160" />
+            <el-table-column prop="scene" label="场景" min-width="140" />
+            <el-table-column prop="route" label="路由" width="120">
+              <template #default="{ row }">{{ row.route || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="skillId" label="Skill" width="120">
+              <template #default="{ row }">{{ row.skillId || '-' }}</template>
+            </el-table-column>
             <el-table-column prop="model" label="模型" min-width="160" />
             <el-table-column
               prop="promptVersion"
@@ -303,8 +311,11 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { Coin, DataLine, Finished, Lightning } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { getMetricsOverview } from '@/apis/metrics';
-import { useUserStore } from '@/stores/user';
-import type { LlmRun, MetricsRange, MetricsTrendPoint } from '@en/common/metrics';
+import type {
+  LlmRun,
+  MetricsRange,
+  MetricsTrendPoint,
+} from '@en/common/metrics';
 
 type RangeValue = MetricsRange;
 type ComparisonMetric = 'totalTokens' | 'cacheRate' | 'qualityScore';
@@ -320,7 +331,7 @@ interface ModelComparison {
   firstTokenMs: number;
   durationMs: number;
   costCents: number;
-  qualityScore: number;
+  qualityScore: number | null;
   barWidth: number;
 }
 
@@ -336,7 +347,6 @@ const rangeOptions = [
   { label: '30 天', value: '30d' },
 ];
 
-const userStore = useUserStore();
 const runs = ref<LlmRun[]>([]);
 const trendPoints = ref<MetricsTrendPoint[]>([]);
 
@@ -354,7 +364,10 @@ const totals = computed(() => {
       acc.firstTokenMs += run.firstTokenMs;
       acc.durationMs += run.durationMs;
       acc.costCents += run.costCents;
-      acc.qualityScore += run.qualityScore;
+      if (run.qualityScore !== null) {
+        acc.qualityScore += run.qualityScore;
+        acc.qualityScoreCount += 1;
+      }
       return acc;
     },
     {
@@ -366,6 +379,7 @@ const totals = computed(() => {
       durationMs: 0,
       costCents: 0,
       qualityScore: 0,
+      qualityScoreCount: 0,
     },
   );
 });
@@ -400,7 +414,9 @@ const summaryMetrics = computed(() => {
     },
     {
       label: '平均评分',
-      value: `${Math.round(totals.value.qualityScore / runCount)}`,
+      value: totals.value.qualityScoreCount
+        ? `${Math.round(totals.value.qualityScore / totals.value.qualityScoreCount)}`
+        : '--',
       hint: '后续由固定评测集或人工反馈写入',
       icon: DataLine,
       color: 'text-rose-500',
@@ -423,7 +439,10 @@ const modelComparison = computed<ModelComparison[]>(() => {
         acc.firstTokenMs += run.firstTokenMs;
         acc.durationMs += run.durationMs;
         acc.costCents += run.costCents;
-        acc.qualityScore += run.qualityScore;
+        if (run.qualityScore !== null) {
+          acc.qualityScore += run.qualityScore;
+          acc.qualityScoreCount += 1;
+        }
         return acc;
       },
       {
@@ -434,6 +453,7 @@ const modelComparison = computed<ModelComparison[]>(() => {
         durationMs: 0,
         costCents: 0,
         qualityScore: 0,
+        qualityScoreCount: 0,
       },
     );
     const runCount = group.length;
@@ -452,7 +472,9 @@ const modelComparison = computed<ModelComparison[]>(() => {
       firstTokenMs: Math.round(sum.firstTokenMs / runCount),
       durationMs: Math.round(sum.durationMs / runCount),
       costCents: Number(sum.costCents.toFixed(2)),
-      qualityScore: Math.round(sum.qualityScore / runCount),
+      qualityScore: sum.qualityScoreCount
+        ? Math.round(sum.qualityScore / sum.qualityScoreCount)
+        : null,
       barWidth: 0,
     };
   });
@@ -567,14 +589,14 @@ const filteredRuns = computed(() => {
   if (!value) return visibleRuns.value;
 
   return visibleRuns.value.filter((run) => {
-    return `${run.model} ${run.scene} ${run.promptVersion}`
+    return `${run.model} ${run.scene} ${run.route ?? ''} ${run.skillId ?? ''} ${run.promptVersion}`
       .toLowerCase()
       .includes(value);
   });
 });
 
 const metricValue = (row: ModelComparison, metric: ComparisonMetric) => {
-  return row[metric];
+  return row[metric] ?? 0;
 };
 
 const formatComparisonValue = (row: ModelComparison) => {
@@ -582,7 +604,7 @@ const formatComparisonValue = (row: ModelComparison) => {
     return formatPercent(row.cacheRate);
   }
   if (comparisonMetric.value === 'qualityScore') {
-    return `${row.qualityScore} 分`;
+    return row.qualityScore == null ? '--' : `${row.qualityScore} 分`;
   }
   return formatNumber(row.totalTokens);
 };
@@ -604,7 +626,6 @@ const loadOverview = async () => {
   try {
     const response = await getMetricsOverview({
       range: selectedRange.value,
-      userId: userStore.getUser?.id,
     });
     if (!response.success) {
       throw new Error(response.message || '获取看板数据失败');

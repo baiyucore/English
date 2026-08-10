@@ -257,6 +257,10 @@ model LlmRun {
   user              User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
   conversationId    String?
   scene             String       @default("自由对话")
+  /// 能力路由，例如 translation；未命中专项能力时为 null
+  route             String?
+  /// 命中的 Skill id；Phase 1 与 route 通常相同
+  skillId           String?
   provider          String
   model             String
   promptVersion     String       @default("v1")
@@ -274,4 +278,6 @@ model LlmRun {
   @@index([userId, createdAt])
   @@index([model, createdAt])
   @@index([status])
+  @@index([route, createdAt])
+  @@index([skillId, createdAt])
 }

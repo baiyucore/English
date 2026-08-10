@@ -45,6 +45,30 @@ export default tseslint.config(
     files: ['apps/frontend/**/*.{ts,vue}'],
   })),
   {
+    files: ['apps/frontend/**/*.ts'],
+    extends: [...tseslint.configs.recommended],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+      'prettier/prettier': ['error', { endOfLine: 'auto' }],
+    },
+  },
+  {
     files: ['apps/frontend/**/*.{ts,vue}'],
     languageOptions: {
       globals: {

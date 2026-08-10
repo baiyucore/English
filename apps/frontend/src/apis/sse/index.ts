@@ -1,9 +1,15 @@
 import { fetchEventSource } from '@microsoft/fetch-event-source';
 import type { Method } from 'axios';
+import { useUserStore } from '@/stores/user';
+import { refreshAccessToken } from '@/apis';
 
 export const CHAT_URL = '/ai/v1/chat';
 
-/* eslint-disable no-unused-vars -- 回调参数名仅用于类型声明 */
+const authHeaders = (accessToken?: string | null): Record<string, string> => {
+  const token = accessToken ?? useUserStore().getAccessToken;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 interface SseCallbacks<T> {
   onMessage?(data: T): void;
   onError?(event: Error): void;
@@ -17,12 +23,32 @@ interface FetchSseOptions<T> extends SseCallbacks<T> {
   signal?: AbortSignal;
   onDone?(): void;
 }
-/* eslint-enable no-unused-vars */
 
 const isAbortError = (error: unknown): boolean =>
   error instanceof DOMException
     ? error.name === 'AbortError'
     : error instanceof Error && error.name === 'AbortError';
+
+async function fetchWithAuthRetry(
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  const response = await fetch(url, init);
+  if (response.status !== 401) return response;
+
+  const newAccessToken = await refreshAccessToken();
+  if (!newAccessToken) {
+    return response;
+  }
+
+  return fetch(url, {
+    ...init,
+    headers: {
+      ...(init.headers ?? {}),
+      ...authHeaders(newAccessToken),
+    },
+  });
+}
 
 /** 基于 @microsoft/fetch-event-source 的实现 */
 // TODO: 这里的 body 的类型需要去修改
@@ -34,21 +60,44 @@ export const sse = <T>(
   onError?: SseCallbacks<T>['onError'],
   signal?: AbortSignal,
 ) => {
-  fetchEventSource(url, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal,
-    onmessage: (event) => {
-      onMessage?.(JSON.parse(event.data) as T);
-    },
-    onerror: (event) => {
-      if (signal?.aborted) throw event;
-      onError?.(event);
-    },
-  });
+  let retried = false;
+
+  const connect = (accessToken?: string) => {
+    fetchEventSource(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...authHeaders(accessToken),
+      },
+      body: JSON.stringify(body),
+      signal,
+      onopen: async (response) => {
+        if (response.ok) return;
+        if (response.status === 401 && !retried) {
+          retried = true;
+          const newAccessToken = await refreshAccessToken();
+          if (newAccessToken) {
+            connect(newAccessToken);
+            throw new Error('AUTH_RETRY');
+          }
+        }
+        throw new Error(`请求失败：${response.status}`);
+      },
+      onmessage: (event) => {
+        onMessage?.(JSON.parse(event.data) as T);
+      },
+      onerror: (event) => {
+        if (signal?.aborted) throw event;
+        if (event instanceof Error && event.message === 'AUTH_RETRY') {
+          throw event;
+        }
+        onError?.(event instanceof Error ? event : new Error('请求失败'));
+        throw event;
+      },
+    });
+  };
+
+  connect();
 };
 
 /** 基于原生 fetch + ReadableStream 的自研实现 */
@@ -62,10 +111,11 @@ export const fetchSse = async <T>({
   onDone,
 }: FetchSseOptions<T>): Promise<void> => {
   try {
-    const response = await fetch(url, {
+    const response = await fetchWithAuthRetry(url, {
       method,
       headers: {
         'Content-Type': 'application/json',
+        ...authHeaders(),
       },
       body: body ? JSON.stringify(body) : undefined,
       signal,
