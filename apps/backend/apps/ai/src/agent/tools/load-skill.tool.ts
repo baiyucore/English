@@ -1,7 +1,8 @@
 import { tool } from 'langchain';
 import { z } from 'zod';
 
-import { formatLoadedSkill, skillRegistry } from '../skills';
+import { skillRegistry } from '../skills';
+import { toolCompleted, toolFailed, toJsonResult } from './utils';
 
 /** 渐进式披露第 2 层：按需加载完整 SKILL.md 正文。 */
 export const loadSkillTool = tool(
@@ -12,14 +13,39 @@ export const loadSkillTool = tool(
         .list()
         .map((skill) => skill.id)
         .join(', ');
-      return `技能 ${skillName} 不存在，请先用 list_skills 查看可用技能列表。当前可用：${available || '无'}。`;
+      return toJsonResult(
+        toolFailed(
+          'load_skill',
+          'NOT_FOUND',
+          `技能 ${skillName} 不存在，请先用 list_skills 查看可用技能列表。当前可用：${available || '无'}。`,
+          { retryable: false, field: 'skillName' },
+        ),
+      );
     }
 
     try {
-      return formatLoadedSkill(skillRegistry.load(manifest.name));
+      const skill = skillRegistry.load(manifest.name);
+      return toJsonResult(
+        toolCompleted('load_skill', {
+          name: skill.name,
+          description: skill.description,
+          version: skill.version,
+          triggers: skill.triggers,
+          constraints: skill.constraints,
+          requiredTools: skill.requiredTools,
+          instructions: skill.instructions,
+        }),
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return `技能 ${manifest.name} 加载失败，请刷新技能注册表后重试：${message}`;
+      return toJsonResult(
+        toolFailed(
+          'load_skill',
+          'INTERNAL_ERROR',
+          `技能 ${manifest.name} 加载失败，请刷新技能注册表后重试：${message}`,
+          { retryable: true },
+        ),
+      );
     }
   },
   {

@@ -49,15 +49,25 @@ const translationExpressionModelSchema = z.union([
   z.string().describe('模型无法展开时返回的英文关键表达'),
 ]);
 
+/** JSON mode 偶尔会把备选译文包装为 { translation: string }。 */
+const translationAlternativeModelSchema = z
+  .union([
+    z.string().describe('备选英文译文'),
+    z.object({
+      translation: z.string().describe('备选英文译文'),
+    }),
+  ])
+  .nullable()
+  .default(null);
+
 export const translationResultSchema = z
   .object({
     translation: z
       .string()
       .describe('中文对应的自然英文译文；若需追问可为空字符串'),
-    alternative: z
-      .string()
-      .nullable()
-      .describe('可选备选译文；无合适备选时为 null'),
+    alternative: translationAlternativeModelSchema.describe(
+      '可选备选译文；优先直接返回字符串，无合适备选时为 null',
+    ),
     keyExpressions: z
       .array(translationExpressionModelSchema)
       .default([])
@@ -104,8 +114,9 @@ export type TranslationModelResult = z.infer<typeof translationResultSchema>;
 
 export type TranslationResult = Omit<
   TranslationModelResult,
-  'keyExpressions'
+  'alternative' | 'keyExpressions'
 > & {
+  alternative: string | null;
   keyExpressions: Array<z.infer<typeof translationExpressionSchema>>;
 };
 
@@ -114,6 +125,10 @@ export function normalizeTranslationResult(
 ): TranslationResult {
   return {
     ...result,
+    alternative:
+      typeof result.alternative === 'string'
+        ? result.alternative
+        : (result.alternative?.translation ?? null),
     keyExpressions: result.keyExpressions.map((item) =>
       typeof item === 'string' ? { zh: '', en: item } : item,
     ),

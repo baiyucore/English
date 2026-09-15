@@ -2,22 +2,33 @@ import { tool } from 'langchain';
 import type { ToolRunnableConfig } from '@langchain/core/tools';
 
 import { createDeepSeek } from '../../llm/llm.config';
+import { CORRECTION_EXECUTOR_PROMPT } from '../prompts/executors/correction.prompt';
 import { CORRECTION_SKILL_ID, skillRegistry } from '../skills';
 import {
   correctionInputSchema,
   correctionResultSchema,
 } from './correction.schema';
-import { errorToToolFailure, toolFailure, toJsonResult } from './utils';
+import {
+  errorToToolFailure,
+  toolCompleted,
+  toolFailed,
+  toJsonResult,
+} from './utils';
 
 export const correctEnglishTool = tool(
   async ({ text, focus }, config?: ToolRunnableConfig) => {
     const content = text.trim();
     if (!content) {
       return toJsonResult(
-        toolFailure('VALIDATION_ERROR', '请提供需要纠错的英文内容', {
-          retryable: false,
-          field: 'text',
-        }),
+        toolFailed(
+          'correct_english',
+          'VALIDATION_ERROR',
+          '请提供需要纠错的英文内容',
+          {
+            retryable: false,
+            field: 'text',
+          },
+        ),
       );
     }
 
@@ -37,7 +48,7 @@ export const correctEnglishTool = tool(
         [
           {
             role: 'system',
-            content: `${skill.instructions}\n只返回 JSON 对象，不要输出 Markdown、解释文字或代码块。`,
+            content: CORRECTION_EXECUTOR_PROMPT,
           },
           {
             role: 'user',
@@ -48,15 +59,17 @@ export const correctEnglishTool = tool(
         { signal: config?.signal },
       );
 
-      return toJsonResult({
-        ok: true,
-        skillId: CORRECTION_SKILL_ID,
-        skillVersion: skill.version,
-        original: content,
-        result,
-      });
+      return toJsonResult(
+        toolCompleted(
+          'correct_english',
+          { original: content, result },
+          { skillId: CORRECTION_SKILL_ID, skillVersion: skill.version },
+        ),
+      );
     } catch (error) {
-      return toJsonResult(errorToToolFailure(error, '英文纠错服务暂时不可用'));
+      return toJsonResult(
+        errorToToolFailure('correct_english', error, '英文纠错服务暂时不可用'),
+      );
     }
   },
   {

@@ -1,21 +1,37 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { randomUUID } from 'node:crypto';
-import { createCheckerPoint, createDeepSeek } from '../llm/llm.config';
+import { AIMessage, HumanMessage } from '@langchain/core/messages';
 import { PostgresSaver } from '@langchain/langgraph-checkpoint-postgres';
-import type { AIMessageChunk, ReactAgent } from 'langchain';
-import { createAgent, dynamicSystemPromptMiddleware } from 'langchain';
-import { ChatDto } from '@en/common/chat';
+import type { BaseMessage } from 'langchain';
+import { randomUUID } from 'node:crypto';
+
+import { ChatDto, type ChatMessageMetadata } from '@en/common/chat';
 import { PrismaService, ResponseService } from '@libs/shared';
-import type { AgentStreamEmit } from './stream/agent-stream-event';
-import { skillRegistry, formatSkillsForPrompt } from './skills';
-import { englishLearningTools } from './tools';
+
+import { createCheckerPoint } from '../llm/llm.config';
 import { MetricsService } from '../metrics/metrics.service';
 import {
-  buildSystemPrompt,
-  promptRuntimeContextSchema,
-  type PromptRuntimeContext,
-} from '../prompt';
+  createAgentResultMetadata,
+  createFailedAgentResult,
+  agentResultSchema,
+  withAgentResultDuration,
+  type AgentResult,
+} from './contracts/agent-result.contract';
+import type { AgentIntent } from './contracts/intent.contract';
+import type { AgentGraphStateValue } from './langgraph/agent.state';
+import {
+  createAgentExecutionGraph,
+  type AgentExecutionGraph,
+  type AgentGraphRuntime,
+} from './langgraph/execution.graph';
+import { classifyIntent } from './langchain/intent-classifier.chain';
+import {
+  createLearningChatChain,
+  type LearningChatChain,
+} from './langchain/learning-chat.chain';
+import { executeSpecializedRoute } from './langchain/specialized-execution.chain';
+import { LANGGRAPH_AGENT_SDK_STATUS } from './langgraph/sdk/agent-sdk.integration';
+import type { AgentStreamEmit } from './stream/agent-stream-event';
 
 export interface AgentRunOptions {
   signal?: AbortSignal;
@@ -27,10 +43,17 @@ type UsageAccumulator = {
   outputTokens: number;
 };
 
+/**
+ * HTTP / database adapter only.
+ * - LangChain 能力封装在 ./langchain
+ * - LangGraph 编排封装在 ./langgraph
+ * - tools、skills 与未来 RAG 保持为两层共享能力
+ */
 @Injectable()
 export class AgentService implements OnModuleInit {
   private checkerPoint!: PostgresSaver;
-  private agent!: ReactAgent<any>;
+  private learningChatChain!: LearningChatChain;
+  private executionGraph!: AgentExecutionGraph;
 
   constructor(
     private readonly responseService: ResponseService,
@@ -41,17 +64,41 @@ export class AgentService implements OnModuleInit {
 
   async onModuleInit() {
     this.checkerPoint = await createCheckerPoint();
-    const skillsHint = formatSkillsForPrompt(skillRegistry.list());
-    this.agent = createAgent({
-      model: createDeepSeek(),
+    this.learningChatChain = createLearningChatChain(this.prisma);
+    this.executionGraph = createAgentExecutionGraph({
       checkpointer: this.checkerPoint,
-      contextSchema: promptRuntimeContextSchema,
-      middleware: [
-        dynamicSystemPromptMiddleware<PromptRuntimeContext>((_, runtime) =>
-          buildSystemPrompt(runtime.context, skillsHint),
+      classifier: classifyIntent,
+      executeSpecialized: (route, state, runtime) =>
+        executeSpecializedRoute(
+          route,
+          state.content,
+          runtime.emit,
+          runtime.runId,
+          this.prisma,
+          runtime.signal,
         ),
-      ],
-      tools: englishLearningTools,
+      executeLearningChat: (state, runtime) =>
+        this.learningChatChain.execute(
+          {
+            messages: state.messages,
+            goal: state.content,
+            conversationId: state.conversationId,
+            userId: state.userId,
+            assistantId: state.assistantId,
+            attachmentIds: state.attachmentIds,
+            conversationTitle: state.conversationTitle,
+          },
+          runtime,
+        ),
+      persistAssistantMessage: (state) =>
+        this.recordAssistantMessage(
+          state.conversationId ?? '',
+          state.userId ?? '',
+          state.responseContent ?? '',
+          state.agentResult,
+        ),
+      recordMetrics: (state, runtime) =>
+        this.recordGraphMetrics(state, runtime),
     });
   }
 
@@ -59,82 +106,161 @@ export class AgentService implements OnModuleInit {
     chatDto: ChatDto,
     emit: AgentStreamEmit,
     options: AgentRunOptions = {},
-  ) {
+  ): Promise<AgentResult> {
     const startedAt = Date.now();
+    const runId = randomUUID();
     let firstTokenAt: number | null = null;
-    let assistantContent = '';
     let status: 'success' | 'failed' = 'success';
     let scene = '自由对话';
-    let route: string | null = null;
+    let route: AgentIntent | null = null;
     let skillId: string | null = null;
+    let graphRuntime: AgentGraphRuntime | undefined;
+    let agentResult: AgentResult | undefined;
     const usage: UsageAccumulator = {
       inputTokens: 0,
       cachedInputTokens: 0,
       outputTokens: 0,
     };
     const provider = 'deepseek';
+    const executionMode = chatDto.executionMode ?? 'hybrid';
     const model =
       this.configService.get<string>('DEEPSEEK_API_MODEL') || 'deepseek-chat';
 
     try {
-      const prepared = await this.createCompletionStream(
-        chatDto,
-        options.signal,
-      );
+      await emit({ type: 'agent_started', role: 'ai', runId });
+      const prepared = await this.prepareConversation(chatDto);
       scene = prepared.scene;
-      const stream = prepared.stream;
+      graphRuntime = this.createGraphRuntime(
+        runId,
+        options.signal,
+        emit,
+        startedAt,
+        scene,
+        firstTokenAt,
+        usage,
+        () => {
+          if (firstTokenAt === null) firstTokenAt = Date.now();
+        },
+      );
 
-      for await (const chunk of stream) {
-        if (options.signal?.aborted) {
-          return;
-        }
+      if (executionMode === 'langgraph_agent') {
+        throw new Error(
+          `LangGraph Agent SDK is ${LANGGRAPH_AGENT_SDK_STATUS}; integration is not available yet.`,
+        );
+      }
 
-        const [msg] = chunk;
-        mergeUsageFromMessage(usage, msg as AIMessageChunk);
-
-        const detected = detectActiveSkill(msg);
-        if (detected) {
-          // Phase 1：route 与 skillId 同为能力标识（如 translation）
-          route = detected;
-          skillId = detected;
-        }
-
-        if (msg.getType() !== 'ai' || !msg.content) continue;
-        if (typeof msg.content !== 'string') continue;
-
-        if (firstTokenAt === null) {
-          firstTokenAt = Date.now();
-        }
-
-        assistantContent += msg.content;
-        await emit({ type: 'delta', role: 'ai', content: msg.content });
+      if (executionMode === 'langchain') {
+        await emit({
+          type: 'route_selected',
+          role: 'ai',
+          runId,
+          route: 'learning_chat',
+          skillId: null,
+        });
+        const result = await this.learningChatChain.execute(
+          {
+            messages: await this.getConversationMessages(
+              chatDto.conversationId,
+            ),
+            goal: chatDto.content,
+            conversationId: chatDto.conversationId,
+            userId: chatDto.userId,
+            assistantId: prepared.assistantId,
+            attachmentIds: prepared.attachmentIds,
+            conversationTitle: prepared.conversationTitle,
+          },
+          graphRuntime,
+        );
+        agentResult = withAgentResultDuration(result, Date.now() - startedAt);
+        route = 'learning_chat';
+        await this.recordAssistantMessage(
+          chatDto.conversationId,
+          chatDto.userId,
+          result.content,
+          agentResult,
+        );
+      } else {
+        const result = await this.executionGraph.invoke(
+          {
+            messages: [new HumanMessage(chatDto.content)],
+            content: chatDto.content,
+            conversationId: chatDto.conversationId,
+            userId: chatDto.userId,
+            assistantId: prepared.assistantId,
+            attachmentIds: prepared.attachmentIds,
+            conversationTitle: prepared.conversationTitle,
+          },
+          {
+            configurable: {
+              thread_id: chatDto.conversationId,
+              agentRuntime: graphRuntime,
+            },
+            signal: options.signal,
+          },
+        );
+        route = result.route ?? 'learning_chat';
+        skillId = route === 'learning_chat' ? null : route;
+        if (result.toolFailed) status = 'failed';
+        agentResult =
+          result.agentResult ??
+          createFailedAgentResult(route, '暂时无法生成回答，请稍后再试。', {
+            code: 'INTERNAL_ERROR',
+            message: '工作流未生成统一结果',
+            retryable: true,
+          });
       }
 
       if (options.signal?.aborted) {
-        return;
+        await emit({ type: 'agent_cancelled', role: 'ai', runId });
+        return createFailedAgentResult(null, '本次请求已取消。', {
+          code: 'CANCELLED',
+          message: '用户取消了请求',
+          retryable: false,
+        });
       }
-
-      await this.recordAssistantMessage(
-        chatDto.conversationId,
-        chatDto.userId,
-        assistantContent,
-      );
+      if (!agentResult) {
+        throw new Error('Agent execution completed without a result');
+      }
+      await emit({
+        type: 'agent_result',
+        role: 'ai',
+        runId,
+        result: agentResult,
+      });
+      await emit({
+        type: 'agent_completed',
+        role: 'ai',
+        runId,
+        durationMs: Date.now() - startedAt,
+      });
       await emit({ type: 'done', role: 'ai' });
+      return agentResult;
     } catch (error) {
+      if (options.signal?.aborted) {
+        await emit({ type: 'agent_cancelled', role: 'ai', runId });
+        return createFailedAgentResult(null, '本次请求已取消。', {
+          code: 'CANCELLED',
+          message: '用户取消了请求',
+          retryable: false,
+        });
+      }
       status = 'failed';
+      await emit({
+        type: 'agent_failed',
+        role: 'ai',
+        runId,
+        error: getSafeErrorMessage(),
+      });
       throw error;
     } finally {
-      if (!options.signal?.aborted) {
+      if (!options.signal?.aborted && !graphRuntime?.metricsRecorded) {
         const durationMs = Date.now() - startedAt;
+        const metrics = graphRuntime?.metrics;
+        const effectiveFirstTokenAt = metrics?.firstTokenAt ?? firstTokenAt;
         const firstTokenMs =
-          firstTokenAt == null ? durationMs : firstTokenAt - startedAt;
-        const costCents = estimateCostCents(
-          model,
-          usage.inputTokens,
-          usage.cachedInputTokens,
-          usage.outputTokens,
-        );
-
+          effectiveFirstTokenAt == null
+            ? durationMs
+            : effectiveFirstTokenAt - startedAt;
         await this.metricsService.recordRun({
           userId: chatDto.userId,
           conversationId: chatDto.conversationId,
@@ -142,34 +268,36 @@ export class AgentService implements OnModuleInit {
           route,
           skillId,
           provider,
-          model,
+          model: metrics?.model ?? model,
           promptVersion: 'v1',
-          inputTokens: usage.inputTokens,
-          cachedInputTokens: usage.cachedInputTokens,
-          outputTokens: usage.outputTokens,
+          inputTokens: metrics?.inputTokens ?? usage.inputTokens,
+          cachedInputTokens:
+            metrics?.cachedInputTokens ?? usage.cachedInputTokens,
+          outputTokens: metrics?.outputTokens ?? usage.outputTokens,
           firstTokenMs,
           durationMs,
-          costCents,
+          costCents: estimateCostCents(
+            metrics?.model ?? model,
+            metrics?.inputTokens ?? usage.inputTokens,
+            metrics?.cachedInputTokens ?? usage.cachedInputTokens,
+            metrics?.outputTokens ?? usage.outputTokens,
+          ),
           qualityScore: null,
           status,
         });
       }
     }
   }
-  // 获取历史记录
+
   async findAll(conversationId: string, userId?: string) {
     const threadId = conversationId?.trim();
     const normalizedUserId = userId?.trim();
-    if (!threadId || !normalizedUserId) {
-      return this.responseService.success([]);
-    }
+    if (!threadId || !normalizedUserId) return this.responseService.success([]);
 
     const owned = await this.prisma.chatConversation.findFirst({
       where: { id: threadId, userId: normalizedUserId },
     });
-    if (!owned) {
-      return this.responseService.success([]);
-    }
+    if (!owned) return this.responseService.success([]);
 
     const storedMessages = await this.prisma.chatMessage.findMany({
       where: { conversationId: threadId },
@@ -179,45 +307,43 @@ export class AgentService implements OnModuleInit {
       return this.responseService.success(
         storedMessages
           .filter((item) => item.role === 'AI' || item.role === 'HUMAN')
-          .map((item) => ({
-            content: item.content,
-            role: item.role === 'AI' ? 'ai' : 'human',
-          })),
+          .map((item) => {
+            const metadata = normalizeChatMessageMetadata(item.metadata);
+            return {
+              content: item.content,
+              role: item.role === 'AI' ? 'ai' : 'human',
+              ...(metadata ? { metadata } : {}),
+            };
+          }),
       );
     }
 
-    const list = await this.getCheckpointMessages(threadId);
-    if (!list) return this.responseService.success([]);
+    const messages = await this.getCheckpointMessages(threadId);
+    if (!messages) return this.responseService.success([]);
     return this.responseService.success(
-      list
-        .filter((item) => item.type === 'ai' || item.type === 'human')
+      messages
+        .filter((item) => item.getType() === 'ai' || item.getType() === 'human')
         .map((item) => ({
           content: normalizeMessageContent(item.content),
-          role: item.type === 'ai' ? 'ai' : 'human',
+          role: item.getType() === 'ai' ? 'ai' : 'human',
         })),
     );
   }
 
   async deleteThread(threadId: string) {
     const id = threadId?.trim();
-    if (!id) return;
-    await this.checkerPoint.deleteThread(id);
+    if (id) await this.checkerPoint.deleteThread(id);
   }
 
-  private async createCompletionStream(chatDto: ChatDto, signal?: AbortSignal) {
+  private async prepareConversation(chatDto: ChatDto) {
     const conversationId = chatDto.conversationId?.trim();
     const userId = chatDto.userId?.trim();
-    if (!conversationId || !userId) {
-      throw new Error('Conversation not found');
-    }
+    if (!conversationId || !userId) throw new Error('Conversation not found');
 
     const conversation = await this.prisma.chatConversation.findFirst({
       where: { id: conversationId, userId, status: 'ACTIVE' },
     });
-    if (!conversation) {
-      throw new Error('Conversation not found');
-    }
-
+    if (!conversation) throw new Error('Conversation not found');
     if (
       chatDto.assistantKey &&
       chatDto.assistantKey !== conversation.assistantId
@@ -241,11 +367,7 @@ export class AgentService implements OnModuleInit {
     }
 
     await this.prisma.chatMessage.create({
-      data: {
-        conversationId,
-        role: 'HUMAN',
-        content: chatDto.content,
-      },
+      data: { conversationId, role: 'HUMAN', content: chatDto.content },
     });
     await this.prisma.chatConversation.update({
       where: { id: conversationId },
@@ -258,77 +380,142 @@ export class AgentService implements OnModuleInit {
         updatedAt: new Date(),
       },
     });
+    return {
+      scene:
+        conversation.title && conversation.title !== '新聊天'
+          ? conversation.title
+          : '自由对话',
+      assistantId: conversation.assistantId,
+      attachmentIds,
+      conversationTitle: conversation.title,
+    };
+  }
 
-    const scene =
-      conversation.title && conversation.title !== '新聊天'
-        ? conversation.title
-        : '自由对话';
-
-    const stream = await this.agent.stream(
-      {
-        messages: [{ role: 'human', content: chatDto.content }],
+  private createGraphRuntime(
+    runId: string,
+    signal: AbortSignal | undefined,
+    emit: AgentStreamEmit,
+    startedAt: number,
+    scene: string,
+    firstTokenAt: number | null,
+    usage: UsageAccumulator,
+    onFirstToken: () => void,
+  ): AgentGraphRuntime {
+    const model =
+      this.configService.get<string>('DEEPSEEK_API_MODEL') || 'deepseek-chat';
+    let runtime!: AgentGraphRuntime;
+    runtime = {
+      runId,
+      signal,
+      emit,
+      markFirstToken: () => {
+        if (runtime.metrics.firstTokenAt === null) {
+          runtime.metrics.firstTokenAt = Date.now();
+        }
+        onFirstToken();
       },
-      {
-        configurable: {
-          thread_id: conversationId,
-          userId,
-          assistantId: conversation.assistantId,
-          attachmentIds,
-          traceId: randomUUID(),
-        },
-        context: {
-          conversationTitle: conversation.title,
-          attachmentCount: attachmentIds.length,
-        },
-        streamMode: 'messages',
-        signal,
+      metrics: {
+        startedAt,
+        firstTokenAt,
+        inputTokens: usage.inputTokens,
+        cachedInputTokens: usage.cachedInputTokens,
+        outputTokens: usage.outputTokens,
+        provider: 'deepseek',
+        model,
+        scene,
       },
-    );
+      metricsRecorded: false,
+    };
+    return runtime;
+  }
 
-    return { scene, stream };
+  private async recordGraphMetrics(
+    state: AgentGraphStateValue,
+    runtime: AgentGraphRuntime,
+  ) {
+    const durationMs = Date.now() - runtime.metrics.startedAt;
+    const firstTokenMs =
+      runtime.metrics.firstTokenAt === null
+        ? durationMs
+        : runtime.metrics.firstTokenAt - runtime.metrics.startedAt;
+    await this.metricsService.recordRun({
+      userId: state.userId,
+      conversationId: state.conversationId,
+      scene: runtime.metrics.scene,
+      route: state.route,
+      skillId: state.route === 'learning_chat' ? null : state.route,
+      provider: runtime.metrics.provider,
+      model: runtime.metrics.model,
+      promptVersion: 'v1',
+      inputTokens: runtime.metrics.inputTokens,
+      cachedInputTokens: runtime.metrics.cachedInputTokens,
+      outputTokens: runtime.metrics.outputTokens,
+      firstTokenMs,
+      durationMs,
+      costCents: estimateCostCents(
+        runtime.metrics.model,
+        runtime.metrics.inputTokens,
+        runtime.metrics.cachedInputTokens,
+        runtime.metrics.outputTokens,
+      ),
+      qualityScore: null,
+      status: state.toolFailed ? 'failed' : 'success',
+    });
   }
 
   private async recordAssistantMessage(
     conversationId: string,
     userId: string,
     content: string,
+    agentResult: AgentResult | null = null,
   ) {
     const normalizedContent = content.trim();
     if (!normalizedContent) return;
-
     const conversation = await this.prisma.chatConversation.findFirst({
       where: { id: conversationId, userId },
     });
     if (!conversation) return;
-
     await this.prisma.chatMessage.create({
       data: {
         conversationId,
         role: 'AI',
         content: normalizedContent,
+        ...(agentResult
+          ? { metadata: createAgentResultMetadata(agentResult) }
+          : {}),
       },
     });
     await this.prisma.chatConversation.update({
       where: { id: conversationId },
-      data: {
-        lastMessageAt: new Date(),
-        updatedAt: new Date(),
-      },
+      data: { lastMessageAt: new Date(), updatedAt: new Date() },
     });
   }
 
   private async getCheckpointMessages(
     threadId: string,
-  ): Promise<AIMessageChunk[] | null> {
+  ): Promise<BaseMessage[] | null> {
     const checkpoint = await this.checkerPoint.get({
-      configurable: {
-        thread_id: threadId,
-      },
+      configurable: { thread_id: threadId },
     });
-    const list = checkpoint?.channel_values.messages as
-      | AIMessageChunk[]
-      | undefined;
-    return list ?? null;
+    return (
+      (checkpoint?.channel_values.messages as BaseMessage[] | undefined) ?? null
+    );
+  }
+
+  private async getConversationMessages(
+    conversationId: string,
+  ): Promise<BaseMessage[]> {
+    const messages = await this.prisma.chatMessage.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return messages
+      .filter((item) => item.role === 'AI' || item.role === 'HUMAN')
+      .map((item) =>
+        item.role === 'AI'
+          ? new AIMessage(item.content)
+          : new HumanMessage(item.content),
+      );
   }
 }
 
@@ -338,78 +525,11 @@ function createConversationTitle(content: string): string {
   return title.length > 24 ? `${title.slice(0, 24)}...` : title;
 }
 
-function detectActiveSkill(msg: unknown): string | null {
-  const loaded = detectLoadedSkillName(msg);
-  if (loaded && skillRegistry.get(loaded)) {
-    return loaded;
-  }
-
-  const toolNames = collectToolNames(msg);
-  for (const name of toolNames) {
-    if (name === 'list_skills' || name === 'load_skill') continue;
-    const skill = skillRegistry.findByToolName(name);
-    if (skill) {
-      return skill.id;
-    }
-  }
-  return null;
+function getSafeErrorMessage(): string {
+  return '智能体执行失败，请稍后重试';
 }
 
-function detectLoadedSkillName(msg: unknown): string | null {
-  if (!msg || typeof msg !== 'object') return null;
-
-  const record = msg as {
-    tool_calls?: Array<{
-      name?: string;
-      args?: Record<string, unknown>;
-    }>;
-  };
-
-  for (const call of record.tool_calls ?? []) {
-    if (call?.name !== 'load_skill') continue;
-    const skillName = call.args?.skillName;
-    if (typeof skillName === 'string' && skillName.trim()) {
-      return skillName.trim();
-    }
-  }
-
-  return null;
-}
-
-function collectToolNames(msg: unknown): string[] {
-  if (!msg || typeof msg !== 'object') return [];
-
-  const record = msg as {
-    getType?: () => string;
-    name?: string;
-    tool_calls?: Array<{ name?: string }>;
-    tool_call_chunks?: Array<{ name?: string }>;
-  };
-
-  const names: string[] = [];
-
-  if (typeof record.getType === 'function' && record.getType() === 'tool') {
-    if (typeof record.name === 'string' && record.name) {
-      names.push(record.name);
-    }
-  }
-
-  for (const call of record.tool_calls ?? []) {
-    if (typeof call?.name === 'string' && call.name) {
-      names.push(call.name);
-    }
-  }
-
-  for (const chunk of record.tool_call_chunks ?? []) {
-    if (typeof chunk?.name === 'string' && chunk.name) {
-      names.push(chunk.name);
-    }
-  }
-
-  return names;
-}
-
-function normalizeMessageContent(content: AIMessageChunk['content']): string {
+function normalizeMessageContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
@@ -423,79 +543,35 @@ function normalizeMessageContent(content: AIMessageChunk['content']): string {
       })
       .join('');
   }
-  return content == null ? '' : String(content);
+  return typeof content === 'number' || typeof content === 'boolean'
+    ? String(content)
+    : '';
 }
 
-function mergeUsageFromMessage(usage: UsageAccumulator, msg: AIMessageChunk) {
-  const metadata = msg.usage_metadata as
-    | {
-        input_tokens?: number;
-        output_tokens?: number;
-        input_token_details?: { cache_read?: number };
-      }
-    | undefined;
-
-  if (metadata) {
-    if (typeof metadata.input_tokens === 'number') {
-      usage.inputTokens = Math.max(usage.inputTokens, metadata.input_tokens);
-    }
-    if (typeof metadata.output_tokens === 'number') {
-      usage.outputTokens = Math.max(usage.outputTokens, metadata.output_tokens);
-    }
-    const cacheRead = metadata.input_token_details?.cache_read;
-    if (typeof cacheRead === 'number') {
-      usage.cachedInputTokens = Math.max(usage.cachedInputTokens, cacheRead);
-    }
+function normalizeChatMessageMetadata(
+  metadata: unknown,
+): ChatMessageMetadata | undefined {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return undefined;
   }
-
-  const responseMetadata = msg.response_metadata as
-    | {
-        usage?: {
-          prompt_tokens?: number;
-          completion_tokens?: number;
-          prompt_cache_hit_tokens?: number;
-          prompt_cache_tokens?: number;
-        };
-        tokenUsage?: {
-          promptTokens?: number;
-          completionTokens?: number;
-        };
-      }
-    | undefined;
-
-  const rawUsage = responseMetadata?.usage;
-  if (rawUsage) {
-    if (typeof rawUsage.prompt_tokens === 'number') {
-      usage.inputTokens = Math.max(usage.inputTokens, rawUsage.prompt_tokens);
-    }
-    if (typeof rawUsage.completion_tokens === 'number') {
-      usage.outputTokens = Math.max(
-        usage.outputTokens,
-        rawUsage.completion_tokens,
-      );
-    }
-    const cacheHit =
-      rawUsage.prompt_cache_hit_tokens ?? rawUsage.prompt_cache_tokens;
-    if (typeof cacheHit === 'number') {
-      usage.cachedInputTokens = Math.max(usage.cachedInputTokens, cacheHit);
-    }
-  }
-
-  const tokenUsage = responseMetadata?.tokenUsage;
-  if (tokenUsage) {
-    if (typeof tokenUsage.promptTokens === 'number') {
-      usage.inputTokens = Math.max(usage.inputTokens, tokenUsage.promptTokens);
-    }
-    if (typeof tokenUsage.completionTokens === 'number') {
-      usage.outputTokens = Math.max(
-        usage.outputTokens,
-        tokenUsage.completionTokens,
-      );
-    }
-  }
+  const value = metadata as {
+    agentResult?: unknown;
+    agentResultVersion?: unknown;
+    agentResultTruncated?: unknown;
+  };
+  const parsedResult = agentResultSchema.safeParse(value.agentResult);
+  if (!parsedResult.success) return undefined;
+  return {
+    agentResult: parsedResult.data,
+    ...(typeof value.agentResultVersion === 'number'
+      ? { agentResultVersion: value.agentResultVersion }
+      : {}),
+    ...(typeof value.agentResultTruncated === 'boolean'
+      ? { agentResultTruncated: value.agentResultTruncated }
+      : {}),
+  };
 }
 
-/** 按 DeepSeek 公开价粗估成本，单位：分（CNY fen） */
 function estimateCostCents(
   model: string,
   inputTokens: number,
@@ -506,12 +582,10 @@ function estimateCostCents(
   const rates = model.includes('reasoner')
     ? { input: 55, cached: 14, output: 219 }
     : { input: 14, cached: 1.4, output: 28 };
-
   const costYuan =
     (billableInput * rates.input +
       cachedInputTokens * rates.cached +
       outputTokens * rates.output) /
     1_000_000;
-
   return Number((costYuan * 100).toFixed(4));
 }

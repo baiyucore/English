@@ -1,6 +1,7 @@
 import {
   CHAT_ATTACHMENT_IDS_MAX,
   CHAT_CONTENT_MAX_LENGTH,
+  CHAT_EXECUTION_MODES,
   CHAT_ID_MAX_LENGTH,
   type ChatRequestDto as ChatRequestDtoType,
 } from '@en/common/chat';
@@ -10,6 +11,7 @@ import {
   ArrayUnique,
   IsArray,
   IsNotEmpty,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -63,4 +65,10 @@ export class ChatRequestDto implements ChatRequestDtoType {
     message: `attachmentIds 每一项不能超过 ${CHAT_ID_MAX_LENGTH} 个字符`,
   })
   attachmentIds?: string[];
+
+  @IsOptional()
+  @IsIn(CHAT_EXECUTION_MODES, {
+    message: 'executionMode 必须是支持的执行模式',
+  })
+  executionMode?: ChatRequestDtoType['executionMode'];
 }

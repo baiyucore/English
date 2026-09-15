@@ -1,11 +1,24 @@
 import { tool } from 'langchain';
 import { z } from 'zod';
 
-import { formatSkillSummaries, skillRegistry } from '../skills';
+import { skillRegistry } from '../skills';
+import { toolCompleted, toJsonResult } from './utils';
 
 /** 渐进式披露第 1 层：只返回 frontmatter 摘要。 */
 export const listSkillsTool = tool(
-  () => formatSkillSummaries(skillRegistry.list()),
+  () =>
+    toJsonResult(
+      toolCompleted('list_skills', {
+        skills: skillRegistry.list().map((skill) => ({
+          name: skill.name,
+          description: skill.description,
+          version: skill.version,
+          triggers: skill.triggers,
+          constraints: skill.constraints,
+          requiredTools: skill.requiredTools,
+        })),
+      }),
+    ),
   {
     name: 'list_skills',
     description:

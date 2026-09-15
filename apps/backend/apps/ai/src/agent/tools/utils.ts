@@ -1,5 +1,6 @@
 export type ToolErrorCode =
   | 'VALIDATION_ERROR'
+  | 'POLICY_DENIED'
   | 'NOT_FOUND'
   | 'TIMEOUT_ERROR'
   | 'CANCELLED'
@@ -13,9 +14,34 @@ export type ToolError = {
   field?: string;
 };
 
+export type ToolMeta = {
+  skillId?: string;
+  skillVersion?: string;
+};
+
+export type ToolInputRequest = {
+  question: string;
+  fields: string[];
+};
+
 export type ToolResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; error: ToolError };
+  | {
+      status: 'completed';
+      tool: string;
+      data: T;
+      meta?: ToolMeta;
+    }
+  | {
+      status: 'requires_input';
+      tool: string;
+      request: ToolInputRequest;
+      meta?: ToolMeta;
+    }
+  | {
+      status: 'failed';
+      tool: string;
+      error: ToolError;
+    };
 
 export class ToolExecutionError extends Error {
   constructor(
@@ -70,13 +96,41 @@ export async function withToolTimeout<T>(
   }
 }
 
-export function toolFailure(
+export function toolCompleted<T>(
+  tool: string,
+  data: T,
+  meta?: ToolMeta,
+): ToolResult<T> {
+  return {
+    status: 'completed',
+    tool,
+    data,
+    ...(meta && Object.keys(meta).length > 0 ? { meta } : {}),
+  };
+}
+
+export function toolRequiresInput(
+  tool: string,
+  request: ToolInputRequest,
+  meta?: ToolMeta,
+): ToolResult<never> {
+  return {
+    status: 'requires_input',
+    tool,
+    request,
+    ...(meta && Object.keys(meta).length > 0 ? { meta } : {}),
+  };
+}
+
+export function toolFailed(
+  tool: string,
   code: ToolErrorCode,
   message: string,
   options: { retryable?: boolean; field?: string } = {},
 ): ToolResult<never> {
   return {
-    ok: false,
+    status: 'failed',
+    tool,
     error: {
       code,
       message,
@@ -87,15 +141,18 @@ export function toolFailure(
 }
 
 export function errorToToolFailure(
+  tool: string,
   error: unknown,
   fallbackMessage: string,
 ): ToolResult<never> {
   if (error instanceof ToolExecutionError) {
-    return toolFailure(error.code, error.message, {
+    return toolFailed(tool, error.code, error.message, {
       retryable: error.code !== 'CANCELLED',
     });
   }
-  return toolFailure('DOWNSTREAM_ERROR', fallbackMessage, { retryable: true });
+  return toolFailed(tool, 'DOWNSTREAM_ERROR', fallbackMessage, {
+    retryable: true,
+  });
 }
 
 /** 只提取排障所需字段，避免日志携带请求头、API Key 或用户原文。 */

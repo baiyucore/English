@@ -3,6 +3,7 @@ import { tool } from 'langchain';
 import type { ToolRunnableConfig } from '@langchain/core/tools';
 
 import { createDeepSeek } from '../../llm/llm.config';
+import { TRANSLATION_EXECUTOR_PROMPT } from '../prompts/executors/translation.prompt';
 import { skillRegistry, TRANSLATION_SKILL_ID } from '../skills';
 import {
   normalizeTranslationResult,
@@ -13,7 +14,9 @@ import {
 import {
   describeToolError,
   errorToToolFailure,
-  toolFailure,
+  toolCompleted,
+  toolFailed,
+  toolRequiresInput,
   toJsonResult,
 } from './utils';
 
@@ -25,10 +28,15 @@ export const translateZhToEnTool = tool(
     const startedAt = Date.now();
     if (!content) {
       return toJsonResult(
-        toolFailure('VALIDATION_ERROR', '请提供需要翻译的中文内容', {
-          retryable: false,
-          field: 'text',
-        }),
+        toolFailed(
+          'translate_zh_to_en',
+          'VALIDATION_ERROR',
+          '请提供需要翻译的中文内容',
+          {
+            retryable: false,
+            field: 'text',
+          },
+        ),
       );
     }
 
@@ -63,7 +71,7 @@ export const translateZhToEnTool = tool(
         [
           {
             role: 'system',
-            content: `${skill.instructions}\n只返回 JSON 对象，不要输出 Markdown、解释文字或代码块。`,
+            content: TRANSLATION_EXECUTOR_PROMPT,
           },
           {
             role: 'user',
@@ -82,13 +90,30 @@ export const translateZhToEnTool = tool(
         })}`,
       );
 
-      return toJsonResult({
-        ok: true,
+      const meta = {
         skillId: TRANSLATION_SKILL_ID,
         skillVersion: skill.version,
-        original: content,
-        result,
-      });
+      };
+      if (result.needsClarification) {
+        return toJsonResult(
+          toolRequiresInput(
+            'translate_zh_to_en',
+            {
+              question: result.clarificationQuestion ?? '请补充更多上下文。',
+              fields: ['text'],
+            },
+            meta,
+          ),
+        );
+      }
+
+      return toJsonResult(
+        toolCompleted(
+          'translate_zh_to_en',
+          { original: content, result },
+          meta,
+        ),
+      );
     } catch (error) {
       logger.error(
         `translation failed ${JSON.stringify({
@@ -97,7 +122,13 @@ export const translateZhToEnTool = tool(
           error: describeToolError(error),
         })}`,
       );
-      return toJsonResult(errorToToolFailure(error, '中英翻译服务暂时不可用'));
+      return toJsonResult(
+        errorToToolFailure(
+          'translate_zh_to_en',
+          error,
+          '中英翻译服务暂时不可用',
+        ),
+      );
     }
   },
   {
